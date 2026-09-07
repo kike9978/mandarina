@@ -1,0 +1,66 @@
+---
+description: Mandarina playful UI — Lucide icons and Game Builder Garage–inspired visual language
+globs: src/**/*.{tsx,ts,css}, docs/plans/**/*.md
+alwaysApply: false
+---
+
+# Playful visual language & Lucide
+
+Play on the surface, rigor underneath. UI = friendly **creative workshop / adventure lesson map** — not SaaS, not Anki, not XP farm.
+
+## Icons
+
+- Use **`lucide-react`** for all UI icons; no emoji as primary controls/nav.
+- Nav metaphors: `Home`, `Map`, `Dumbbell`/`Sparkles`, `Trophy`/`Compass`; stash `BookmarkPlus`; packs `PackageOpen`; clear `Crown`; hints `CircleHelp`/`Lightbulb`; media `Volume2`/`Mic`; chrome `Undo2`/`Redo2`/`Pause`/`Play`.
+- `strokeWidth={2}`–`2.5`; touch targets ≥ 44px; bottom nav = icon + label.
+
+## Reference → UI (reinforce always)
+
+| Reference | Do this |
+|---|---|
+| Yellow grid blueprint | Session/Journey ground = grid paper atmosphere |
+| Orange game-screen frame | Chunky framed example/preview when showing “the thing in play” |
+| Speech bubble + Why not!/Nah… | `GuideBubble` + striped cyan primary / simpler secondary |
+| Winding numbered path | Adventure `PathMap`; active = cyan double-outline |
+| Sunburst + yellow split lesson | Journey/header energy |
+| Guide peering tab | Persistent guide personality, not a buried help link |
+| Mint “Game Complete!” | Session clear celebration |
+| Purple “All Clear!” + crown | Major checkpoint only — don’t paint the whole app dark-neon |
+| Skyrim constellations | Progress secondary only; Home stays Continue hero |
+
+## Color, shape, type
+
+- Saturated yellow / orange / cyan (active) / magenta accents / mint success.
+- Never flat single-fill chrome; prefer grid, sunburst, or celebration field.
+- Large radii, **thick soft outlines**, chunky nodes/frames.
+- Expressive display font; no Inter/Roboto/Arial/system as brand face.
+- Avoid: purple-on-white SaaS, cream+terracotta, broadsheet hairlines, dark-mode-first default, glow everywhere.
+
+## Screen rules
+
+- **Home:** one composition, one loud Continue CTA; soft rows (comeback, stash) secondary.
+- **Journey/Session:** path + guide + Confirm/Back; bridge activities — no skill-module menu ping-pong.
+- **Progress:** “I can…” first; constellation optional.
+- **Clear:** full-bleed celebratory moment, then Home.
+- **Stash/Import:** same playful sheet language (“Stash it”, “Pack aboard”) — not admin forms.
+
+## Playfulness checklist (every major screen)
+
+1. Atmosphere (grid / sunburst / celebration)
+2. One expressive element (guide, path, frame, or crown)
+3. One recommended action visually loudest
+4. Coach/game-show copy, still clear
+5. Intentional motion on advance/success/clear (respect reduced-motion)
+
+## Do / don’t
+
+```tsx
+// ✅
+import { Home, Map, Crown, BookmarkPlus } from 'lucide-react'
+
+// ❌
+<button>🏠</button>
+```
+
+- ✅ Reward session clear, ability unlocks, real use / stash lock-in.
+- ❌ XP per tap; punitive streaks; card-grid heroes; flat gray empty states.
