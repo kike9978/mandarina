@@ -1,111 +1,185 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import '@fontsource/fredoka/500.css';
+@import '@fontsource/fredoka/600.css';
+@import '@fontsource/fredoka/700.css';
+@import '@fontsource/nunito/500.css';
+@import '@fontsource/nunito/600.css';
+@import '@fontsource/nunito/700.css';
+@import '@fontsource/nunito/800.css';
+@import 'tailwindcss';
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@theme {
+  --font-display: 'Fredoka', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-grid: #f5d547;
+  --color-grid-deep: #e8c230;
+  --color-sky: #7ec8e8;
+  --color-sky-deep: #5bb4dc;
+  --color-mint: #7ddeb0;
+  --color-mint-deep: #4ecf93;
+  --color-clear: #3d2a6d;
+  --color-clear-grid: #5a3d9a;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  --color-cyan: #2ec4d6;
+  --color-cyan-deep: #1a9eae;
+  --color-orange: #ff7a3d;
+  --color-orange-deep: #e85f22;
+  --color-magenta: #e83a8a;
+  --color-ink: #1f1a14;
+  --color-ink-soft: #4a4035;
+  --color-paper: #fffaf0;
+  --color-paper-warm: #fff3d6;
+  --color-soft-error: #ff8a65;
+  --color-success: #2bb673;
+
+  --shadow-chunky: 4px 4px 0 #1f1a14;
+  --shadow-chunky-sm: 2px 2px 0 #1f1a14;
+  --shadow-magenta: 3px 3px 0 #e83a8a;
+
+  --ease-pop: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --animate-pop-in: pop-in 280ms var(--ease-pop) both;
+  --animate-path-glow: path-glow 1.4s ease-out infinite;
+  --animate-float-soft: float-soft 2.4s ease-in-out infinite;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+@keyframes path-glow {
+  from {
+    box-shadow: 0 0 0 0 rgb(46 196 214 / 0.5);
   }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  to {
+    box-shadow: 0 0 0 8px rgb(46 196 214 / 0);
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply m-0 min-w-80 bg-grid font-body text-ink;
+  }
+
+  #root {
+    @apply min-h-dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply m-0 font-display font-semibold tracking-wide;
+  }
+
+  p {
+    @apply m-0;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    @apply font-body text-ink;
   }
 }
-p {
-  margin: 0;
+
+/* Page gutters: tighter on phones, roomier inside the desktop stage */
+@layer components {
+  .page-pad {
+    @apply grid gap-4 px-4 py-5 pb-7 sm:gap-5 sm:px-5 sm:py-6 md:px-5;
+  }
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+@layer utilities {
+  .atmosphere-grid {
+    background-color: var(--color-grid);
+    background-image:
+      linear-gradient(rgb(31 26 20 / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(31 26 20 / 0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .atmosphere-sunburst {
+    background-color: var(--color-sky);
+    background-image: repeating-conic-gradient(
+      from 0deg at 50% 0%,
+      var(--color-sky) 0deg 8deg,
+      var(--color-sky-deep) 8deg 16deg
+    );
+  }
+
+  .atmosphere-split {
+    background-color: var(--color-grid);
+    background-image:
+      linear-gradient(180deg, transparent 42%, var(--color-grid) 42%),
+      repeating-conic-gradient(
+        from 0deg at 50% -10%,
+        var(--color-sky) 0deg 10deg,
+        var(--color-sky-deep) 10deg 20deg
+      );
+  }
+
+  .atmosphere-mint {
+    background-color: var(--color-mint);
+    background-image: repeating-conic-gradient(
+      from 0deg at 50% 45%,
+      var(--color-mint) 0deg 12deg,
+      var(--color-mint-deep) 12deg 24deg
+    );
+  }
+
+  .atmosphere-clear {
+    background-color: var(--color-clear);
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    @apply text-white;
+  }
+
+  .cta-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--color-cyan),
+      var(--color-cyan) 10px,
+      #5fd4e2 10px,
+      #5fd4e2 20px
+    );
+  }
+
+  .outline-ink {
+    @apply border-[3px] border-ink;
+  }
+
+  .outline-ink-soft {
+    @apply border-[2.5px] border-ink;
+  }
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in,
+  .animate-path-glow,
+  .animate-float-soft {
+    animation: none !important;
+  }
 }
