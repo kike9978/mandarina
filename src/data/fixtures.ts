@@ -309,3 +309,15 @@ export const SAMPLE_PACK_JSON = `[
   {"surface":"元気ですか？","gloss":"How are you?","exampleSentence":"おはよう！元気ですか？"},
   {"surface":"お願いします","gloss":"Please (request)","exampleSentence":"水をお願いします。"}
 ]`
+
+export const SAMPLE_TUTOR_PACK_JSON = `{
+  "phrases": [
+    {"surface":"Saya lapar.","gloss":"I am hungry.","exampleSentence":"Hari ini saya lapar.","abilityTag":"Talk about today"},
+    {"surface":"Mau makan apa?","gloss":"What do you want to eat?","exampleSentence":"Mau makan apa hari ini?"},
+    {"surface":"Saya ada waktu.","gloss":"I have time.","exampleSentence":"Hari ini saya ada waktu."}
+  ],
+  "noteTweaks": [
+    "Stay in daily-life neighbors of hunger, time, and work — one new move each pack.",
+    "Keep every example under ten words and reuse a word they already have."
+  ]
+}`

@@ -10,7 +10,7 @@ export function ClearPage() {
 
   return (
     <div className="atmosphere-mint flex min-h-full flex-1 flex-col">
-      <div className="page-pad grid flex-1 content-center text-center">
+      <div className="page-pad grid flex-1 content-center gap-3 text-center">
         <CheckpointBadge
           title="All Clear!"
           subtitle={`Checkpoints · ${activeUnit?.title ?? 'Lesson'}`}
@@ -31,6 +31,16 @@ export function ClearPage() {
         >
           {isStash ? 'Back to stash' : 'Back to Home'}
         </PrimaryCta>
+        <button
+          type="button"
+          className="min-h-11 text-sm font-extrabold text-ink-soft underline decoration-2 underline-offset-4"
+          onClick={() => {
+            resetSession()
+            navigate('/stash#tutor')
+          }}
+        >
+          Want more phrases?
+        </button>
       </div>
     </div>
   )

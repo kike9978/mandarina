@@ -179,7 +179,10 @@ interface AppStateValue {
   resetSession: () => void
   resetScriptSession: () => void
   addStash: (phrase: Omit<StashedPhrase, 'id'>) => void
-  importPhrases: (phrases: Omit<StashedPhrase, 'id'>[]) => void
+  importPhrases: (
+    phrases: Omit<StashedPhrase, 'id'>[],
+    meta?: { format?: 'json' | 'tsv' | 'paste'; name?: string },
+  ) => void
   logAttempt: (input: {
     activityType: string
     itemKey?: string
@@ -654,7 +657,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   )
 
   const importPhrases = useCallback(
-    async (phrases: Omit<StashedPhrase, 'id'>[]) => {
+    async (
+      phrases: Omit<StashedPhrase, 'id'>[],
+      meta?: { format?: 'json' | 'tsv' | 'paste'; name?: string },
+    ) => {
       const stamped = phrases.map((p, i) => ({
         ...p,
         id: `import-${Date.now()}-${i}`,
@@ -681,10 +687,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }
       await db.packs.add({
         id: `pack-${Date.now()}`,
-        name: 'Imported pack',
+        name: meta?.name ?? 'Imported pack',
         importedAt: new Date().toISOString(),
         itemCount: stamped.length,
-        format: 'json',
+        format: meta?.format ?? 'json',
       })
     },
     [profile.languageId],

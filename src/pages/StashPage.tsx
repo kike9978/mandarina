@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { searchDictionary } from '../learning/dictionary'
 import { stashPracticeCap } from '../learning/templateBridge'
 import { useAppState, useGuideName } from '../state/AppState'
-import { PackImport, StashSheet } from '../components/StashTools'
+import { PackImport, StashSheet, TutorPackSheet } from '../components/StashTools'
 import { GuideBubble, PrimaryCta } from '../components/ui'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export function StashPage() {
   const { stash, addStash, importPhrases, startStashSession } = useAppState()
@@ -16,6 +16,11 @@ export function StashPage() {
   const hits = useMemo(() => searchDictionary(query), [query])
   const practiceCount = Math.min(stash.length, stashPracticeCap())
   const withExample = stash.filter((s) => s.exampleSentence?.trim()).length
+
+  useEffect(() => {
+    if (window.location.hash !== '#tutor') return
+    document.getElementById('tutor-pack')?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
 
   return (
     <div className="atmosphere-grid flex min-h-full flex-1 flex-col">
@@ -42,6 +47,7 @@ export function StashPage() {
           </p>
         )}
 
+        <TutorPackSheet onImport={importPhrases} />
         <PackImport onImport={importPhrases} />
 
         <section className="grid gap-2.5">

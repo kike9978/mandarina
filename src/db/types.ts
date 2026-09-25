@@ -104,7 +104,7 @@ export interface DbContentPack {
   name: string
   importedAt: string
   itemCount: number
-  format: 'json' | 'tsv'
+  format: 'json' | 'tsv' | 'paste'
 }
 
 export interface DbSetting {

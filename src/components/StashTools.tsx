@@ -1,8 +1,26 @@
-import { BookmarkPlus, PackageOpen } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
-import { getPhraseUnit, SAMPLE_PACK_JSON } from '../data/fixtures'
-import { useAppState } from '../state/AppState'
-import { PrimaryCta } from './ui'
+import {
+  BookmarkPlus,
+  ClipboardCopy,
+  ClipboardPaste,
+  PackageOpen,
+  Sparkles,
+  Sprout,
+} from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  getPhraseUnit,
+  SAMPLE_PACK_JSON,
+  SAMPLE_TUTOR_PACK_JSON,
+} from '../data/fixtures'
+import {
+  clearNoteTweaks,
+  foldNoteTweaks,
+  loadNoteTweaks,
+} from '../learning/tutorNotes'
+import { parsePackOrTsv, type TutorPackRow } from '../learning/tutorPack'
+import { knownSurfacesFor, snapshotTutorBrief } from '../learning/tutorSnapshot'
+import { useAppState, useGuideName } from '../state/AppState'
+import { GuideBubble, PrimaryCta, SoftChoice } from './ui'
 
 const fieldClass =
   'min-h-11 rounded-xl border-[2.5px] border-ink bg-white px-3 py-3'
@@ -122,6 +140,17 @@ export function StashSheet({
   )
 }
 
+function rowsToImport(rows: TutorPackRow[]) {
+  return rows.map((r) => ({
+    surface: r.surface,
+    gloss: r.gloss,
+    reading: r.reading,
+    exampleSentence: r.exampleSentence,
+    abilityTag: r.abilityTag,
+    source: 'import' as const,
+  }))
+}
+
 export function PackImport({
   onImport,
 }: {
@@ -129,55 +158,36 @@ export function PackImport({
     phrases: {
       surface: string
       gloss: string
+      reading?: string
       exampleSentence?: string
+      abilityTag?: string
       source: 'import'
     }[],
   ) => void
 }) {
+  const { profile, stash } = useAppState()
   const [message, setMessage] = useState<string | null>(null)
 
-  function parseText(text: string) {
-    const trimmed = text.trim()
-    if (trimmed.startsWith('[')) {
-      const rows = JSON.parse(trimmed) as {
-        surface: string
-        gloss: string
-        exampleSentence?: string
-      }[]
-      return rows
-        .filter((r) => r.surface && r.gloss)
-        .map((r) => ({ ...r, source: 'import' as const }))
+  function ingest(text: string) {
+    const parsed = parsePackOrTsv(text, knownSurfacesFor(profile.languageId, stash))
+    if (parsed.error || parsed.rows.length === 0) {
+      setMessage(parsed.error ?? 'Hmm — no phrases in that pack')
+      return
     }
-    return trimmed
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [surface, gloss, exampleSentence] = line.split('\t')
-        return {
-          surface: surface?.trim() ?? '',
-          gloss: gloss?.trim() ?? '',
-          exampleSentence: exampleSentence?.trim(),
-          source: 'import' as const,
-        }
-      })
-      .filter((r) => r.surface && r.gloss)
+    onImport(rowsToImport(parsed.rows))
+    const extra =
+      parsed.skippedDuplicate > 0
+        ? ` · ${parsed.skippedDuplicate} already aboard`
+        : ''
+    setMessage(
+      `Pack aboard — ${parsed.rows.length} phrases ready when you are.${extra}`,
+    )
   }
 
   function handleFile(file: File) {
     const reader = new FileReader()
     reader.onload = () => {
-      try {
-        const phrases = parseText(String(reader.result ?? ''))
-        if (!phrases.length) {
-          setMessage('Hmm — no phrases found in that pack.')
-          return
-        }
-        onImport(phrases)
-        setMessage(`Pack aboard — ${phrases.length} phrases ready when you are.`)
-      } catch {
-        setMessage('Couldn’t read that pack. Try JSON or TSV.')
-      }
+      ingest(String(reader.result ?? ''))
     }
     reader.readAsText(file)
   }
@@ -206,11 +216,7 @@ export function PackImport({
       <button
         type="button"
         className={`${chipClass} w-fit`}
-        onClick={() => {
-          const phrases = parseText(SAMPLE_PACK_JSON)
-          onImport(phrases)
-          setMessage(`Pack aboard — ${phrases.length} phrases ready when you are.`)
-        }}
+        onClick={() => ingest(SAMPLE_PACK_JSON)}
       >
         Load sample pack
       </button>
@@ -220,5 +226,261 @@ export function PackImport({
         </p>
       )}
     </div>
+  )
+}
+
+export function TutorPackSheet({
+  onImport,
+}: {
+  onImport: ReturnType<typeof useAppState>['importPhrases']
+}) {
+  const { profile, abilities, stash } = useAppState()
+  const guideName = useGuideName()
+  const briefRef = useRef<HTMLTextAreaElement>(null)
+  const [brief, setBrief] = useState('')
+  const [paste, setPaste] = useState('')
+  const [preview, setPreview] = useState<TutorPackRow[] | null>(null)
+  const [previewTips, setPreviewTips] = useState<string[]>([])
+  const [savedTips, setSavedTips] = useState<string[]>([])
+  const [tipsRev, setTipsRev] = useState(0)
+  const [skipped, setSkipped] = useState(0)
+  const [message, setMessage] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    loadNoteTweaks(profile.languageId).then((tips) => {
+      if (!cancelled) setSavedTips(tips)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [profile.languageId, tipsRev])
+
+  useEffect(() => {
+    let cancelled = false
+    snapshotTutorBrief({
+      languageId: profile.languageId,
+      scriptFamiliarity: profile.scriptFamiliarity,
+      goalId: profile.goalId,
+      abilities,
+      stash,
+    }).then((text) => {
+      if (!cancelled) setBrief(text)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    abilities,
+    profile.goalId,
+    profile.languageId,
+    profile.scriptFamiliarity,
+    stash,
+    tipsRev,
+  ])
+
+  async function copyBrief() {
+    if (!brief) return
+    try {
+      await navigator.clipboard.writeText(brief)
+    } catch {
+      briefRef.current?.focus()
+      briefRef.current?.select()
+      document.execCommand('copy')
+    }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
+
+  function bringBack() {
+    const parsed = parsePackOrTsv(
+      paste,
+      knownSurfacesFor(profile.languageId, stash),
+    )
+    if (parsed.error) {
+      setPreview(null)
+      setPreviewTips([])
+      setMessage(parsed.error)
+      return
+    }
+    setPreview(parsed.rows)
+    setPreviewTips(parsed.noteTweaks)
+    setSkipped(parsed.skippedDuplicate)
+    setMessage(null)
+  }
+
+  async function acceptPreview() {
+    if (!preview?.length && previewTips.length === 0) return
+    if (preview?.length) {
+      onImport(rowsToImport(preview), { format: 'paste', name: 'Tutor pack' })
+    }
+    if (previewTips.length) {
+      await foldNoteTweaks(profile.languageId, previewTips)
+      setTipsRev((n) => n + 1)
+    }
+    const bits = [
+      preview?.length
+        ? `${preview.length} phrase${preview.length === 1 ? '' : 's'} ready when you are`
+        : null,
+      previewTips.length
+        ? `${previewTips.length} tip${previewTips.length === 1 ? '' : 's'} folded into the next note`
+        : null,
+    ].filter(Boolean)
+    setMessage(`Pack aboard — ${bits.join(' · ')}.`)
+    setPreview(null)
+    setPreviewTips([])
+    setPaste('')
+    setSkipped(0)
+  }
+
+  return (
+    <section
+      id="tutor-pack"
+      className="grid scroll-mt-4 gap-3 rounded-[22px] border-[3px] border-ink bg-paper p-4 shadow-chunky"
+    >
+      <div className="flex items-center gap-2">
+        <Sprout strokeWidth={2.25} aria-hidden />
+        <h2 className="text-xl">Grow the journey</h2>
+      </div>
+      <GuideBubble name={guideName}>
+        I&apos;ll write a note about where you are. Paste it to a tutor, then
+        bring their pack back. They can tuck in a few tips so the next note is
+        sharper. I won&apos;t talk to them myself.
+      </GuideBubble>
+
+      <label className="grid gap-1.5 text-[0.85rem] font-extrabold">
+        <span>Your note</span>
+        <textarea
+          ref={briefRef}
+          className={`${fieldClass} min-h-36 font-mono text-[0.78rem] leading-snug`}
+          value={brief}
+          readOnly
+          aria-label="Progress brief"
+        />
+      </label>
+      {savedTips.length > 0 && (
+        <div className="grid gap-2 rounded-xl border-2 border-dashed border-ink bg-[#fff3c4] p-3">
+          <p className="inline-flex items-center gap-1.5 text-[0.85rem] font-extrabold">
+            <Sparkles strokeWidth={2.25} aria-hidden />
+            This note already carries {savedTips.length} tutor
+            {savedTips.length === 1 ? ' tip' : ' tips'}
+          </p>
+          <ul className="m-0 grid list-none gap-1 p-0 text-sm font-bold">
+            {savedTips.map((tip) => (
+              <li key={tip}>· {tip}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="w-fit text-sm font-extrabold underline decoration-2 underline-offset-4"
+            onClick={async () => {
+              await clearNoteTweaks(profile.languageId)
+              setTipsRev((n) => n + 1)
+            }}
+          >
+            Forget these tips
+          </button>
+        </div>
+      )}
+      <PrimaryCta onClick={copyBrief} disabled={!brief}>
+        <span className="inline-flex items-center justify-center gap-2">
+          <ClipboardCopy strokeWidth={2.25} aria-hidden />
+          {copied ? 'Copied!' : 'Copy the brief'}
+        </span>
+      </PrimaryCta>
+
+      <label className="grid gap-1.5 text-[0.85rem] font-extrabold">
+        <span>Their pack</span>
+        <textarea
+          className={`${fieldClass} min-h-28 font-mono text-[0.85rem]`}
+          value={paste}
+          onChange={(e) => {
+            setPaste(e.target.value)
+            setPreview(null)
+            setPreviewTips([])
+            setMessage(null)
+          }}
+          placeholder="Paste the pack they sent back"
+          aria-label="Paste tutor pack"
+        />
+      </label>
+      <button
+        type="button"
+        className={`${chipClass} w-fit`}
+        onClick={() => {
+          setPaste(SAMPLE_TUTOR_PACK_JSON)
+          setPreview(null)
+          setPreviewTips([])
+          setMessage(null)
+        }}
+      >
+        Try a sample pack
+      </button>
+      <button
+        type="button"
+        className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border-[3px] border-ink bg-grid px-4 py-3 font-extrabold shadow-chunky"
+        onClick={bringBack}
+      >
+        <ClipboardPaste strokeWidth={2.25} aria-hidden />
+        Bring the pack back
+      </button>
+
+      {(preview || previewTips.length > 0) && (
+        <div className="grid gap-3 rounded-xl border-2 border-ink bg-[#e8fff4] p-3">
+          <p className="font-extrabold">
+            {preview && preview.length > 0
+              ? `Pack aboard — ${preview.length} phrases`
+              : 'Tips for the next note'}
+            {skipped > 0 ? ` · ${skipped} already aboard` : ''}
+          </p>
+          {preview && preview.length > 0 && (
+            <ul className="m-0 grid list-none gap-2 p-0">
+              {preview.map((row) => (
+                <li key={row.surface} className="font-bold">
+                  <strong>{row.surface}</strong>
+                  <span> — {row.gloss}</span>
+                  {row.exampleSentence && (
+                    <p className="text-sm text-ink-soft">{row.exampleSentence}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {previewTips.length > 0 && (
+            <div className="grid gap-1.5">
+              <p className="inline-flex items-center gap-1.5 font-extrabold">
+                <Sparkles strokeWidth={2.25} aria-hidden />
+                They also left {previewTips.length}
+                {previewTips.length === 1 ? ' tip' : ' tips'} for the next note
+              </p>
+              <ul className="m-0 grid list-none gap-1 p-0 text-sm font-bold">
+                {previewTips.map((tip) => (
+                  <li key={tip}>· {tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <SoftChoice
+            primaryLabel="Why not!"
+            secondaryLabel="Nah…"
+            onPrimary={acceptPreview}
+            onSecondary={() => {
+              setPreview(null)
+              setPreviewTips([])
+              setPaste('')
+              setSkipped(0)
+              setMessage(null)
+            }}
+          />
+        </div>
+      )}
+
+      {message && !preview && (
+        <p className="animate-pop-in rounded-xl border-2 border-ink bg-[#e8fff4] p-2.5 font-extrabold">
+          {message}
+        </p>
+      )}
+    </section>
   )
 }

@@ -1,4 +1,4 @@
-import { Check, Pencil, Volume2 } from 'lucide-react'
+import { Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SCRIPT_GLYPHS, languageById } from '../data/languages'
@@ -9,6 +9,7 @@ import {
   SessionChrome,
   SoftFeedback,
 } from '../components/SessionBits'
+import { WriteCanvas } from '../components/WriteCanvas'
 
 export function ScriptSessionPage() {
   const navigate = useNavigate()
@@ -386,6 +387,8 @@ function MatchGlyph({
   )
 }
 
+type WriteStage = 'trace' | 'copy' | 'recall'
+
 function TraceIt({
   glyph,
   glyphId,
@@ -397,51 +400,98 @@ function TraceIt({
   guideName: string
   onNext: () => void
 }) {
-  const [traced, setTraced] = useState(false)
   const { profile, logAttempt } = useAppState()
   const isLatin =
     languageById(profile.languageId).orthographyMode === 'latin-sounds'
+  const [stage, setStage] = useState<WriteStage>('trace')
+  const [inkOk, setInkOk] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const copy: Record<WriteStage, { eye: string; ghost: number; next: string }> =
+    {
+      trace: {
+        eye: isLatin
+          ? 'Trace the letters — follow the faint guide.'
+          : 'Trace the mark. Follow the faint guide with your finger.',
+        ghost: 0.28,
+        next: isLatin ? 'Copy it without the heavy guide' : 'Copy it next',
+      },
+      copy: {
+        eye: 'Now copy it — the guide is lighter. Write it yourself.',
+        ghost: 0.12,
+        next: 'Try from memory',
+      },
+      recall: {
+        eye: 'From memory — write it with no guide.',
+        ghost: 0,
+        next: 'Use it in a tiny bit of language',
+      },
+    }
+
+  const eyebrow =
+    stage === 'trace'
+      ? isLatin
+        ? 'Practice It'
+        : 'Trace It'
+      : stage === 'copy'
+        ? 'Copy It'
+        : 'From Memory'
+
+  const advance = () => {
+    if (!inkOk) {
+      setFailed(true)
+      logAttempt({
+        activityType: 'trace',
+        itemKey: `script:${glyphId}`,
+        facet: 'writing',
+        outcome: 'fail',
+      })
+      return
+    }
+    logAttempt({
+      activityType: 'trace',
+      itemKey: `script:${glyphId}`,
+      facet: 'writing',
+      outcome: 'success',
+    })
+    if (stage === 'trace') setStage('copy')
+    else if (stage === 'copy') setStage('recall')
+    else onNext()
+    setInkOk(false)
+    setFailed(false)
+  }
 
   return (
-    <Shell eyebrow={isLatin ? 'Practice It' : 'Trace It'}>
-      <GuideBubble name={guideName}>
-        {isLatin
-          ? 'Say it once, then tap to lock the spelling pattern in.'
-          : 'Finger-writing builds memory. Full stroke checking lands in Phase 2 — for now, tap through a guided trace.'}
-      </GuideBubble>
-      <div className="relative grid place-items-center rounded-[22px] border-4 border-dashed border-ink bg-paper/80 py-12">
-        <span
-          className={`font-display text-7xl font-bold transition-opacity ${
-            traced ? 'opacity-100' : 'opacity-25'
-          }`}
-        >
-          {glyph}
-        </span>
-        {!traced && (
-          <button
-            type="button"
-            className="absolute inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-cyan px-4 py-2 font-extrabold shadow-chunky"
-            onClick={() => setTraced(true)}
-          >
-            <Pencil size={16} strokeWidth={2.25} aria-hidden />
-            {isLatin ? 'Practice with me' : 'Trace with me'}
-          </button>
-        )}
-      </div>
-      <PrimaryCta
-        disabled={!traced}
-        onClick={() => {
-          logAttempt({
-            activityType: 'trace',
-            itemKey: `script:${glyphId}`,
-            facet: 'writing',
-            outcome: 'success',
-          })
-          onNext()
+    <Shell eyebrow={eyebrow}>
+      <GuideBubble name={guideName}>{copy[stage].eye}</GuideBubble>
+      <WriteCanvas
+        key={stage}
+        ghost={glyph}
+        ghostOpacity={copy[stage].ghost}
+        onInkChange={(ok) => {
+          setInkOk(ok)
+          if (ok) setFailed(false)
         }}
-      >
-        Use it in a tiny bit of language
-      </PrimaryCta>
+      />
+      {failed && !inkOk && (
+        <SoftFeedback
+          hint="Write a bit more — a quick tap doesn’t count as a stroke."
+          answer={glyph}
+          onRetry={() => setFailed(false)}
+          onReveal={() => {
+            logAttempt({
+              activityType: 'trace',
+              itemKey: `script:${glyphId}`,
+              facet: 'writing',
+              outcome: 'reveal',
+            })
+            if (stage === 'recall') onNext()
+            else setStage(stage === 'trace' ? 'copy' : 'recall')
+            setFailed(false)
+          }}
+        />
+      )}
+      <PrimaryCta onClick={advance}>{copy[stage].next}</PrimaryCta>
     </Shell>
   )
 }
