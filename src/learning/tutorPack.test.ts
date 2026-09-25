@@ -111,6 +111,22 @@ describe('parseTutorPack', () => {
 })
 
 describe('object packs and note tweaks', () => {
+  it('keeps a sources array beside phrases', () => {
+    const result = parseTutorPack(`{
+      "phrases": [{"surface":"Jakarta","gloss":"Jakarta","sourceTitle":"Easy Indonesian 1 — Old Jakarta"}],
+      "sources": [{
+        "title":"Easy Indonesian 1 — Old Jakarta",
+        "creator":"Easy Languages",
+        "medium":"video",
+        "url":"https://www.youtube.com/watch?v=8lDeyfxKrRk",
+        "why":"Street chat"
+      }]
+    }`)
+    expect(result.rows[0].sourceTitle).toBe('Easy Indonesian 1 — Old Jakarta')
+    expect(result.sourceItems).toHaveLength(1)
+    expect(result.error).toBeUndefined()
+  })
+
   it('reads phrases plus noteTweaks from an object', () => {
     const result = parseTutorPack(`{
       "phrases": [{"surface":"Mau kopi?","gloss":"Want coffee?"}],
@@ -186,6 +202,9 @@ describe('buildTutorBrief', () => {
     expect(brief).toMatch(/3–8/)
     expect(brief).toContain('Reply with ONLY JSON')
     expect(brief).toContain('noteTweaks')
+    expect(brief).toContain('sources')
+    expect(brief).toContain('transcript')
+    expect(brief).toMatch(/https/)
     expect(briefLeaksJargon(brief)).toBe(false)
   })
 

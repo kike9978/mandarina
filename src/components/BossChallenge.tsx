@@ -1,13 +1,15 @@
-import { Mic, Sparkles } from 'lucide-react'
+import { Sparkles, Volume2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { PhraseUnit } from '../data/fixtures'
 import {
   MockConversationProvider,
   type CorrectionEvent,
 } from '../learning/conversation'
-import { useGuideName } from '../state/AppState'
+import { speakText, ttsLangFor } from '../learning/tts'
+import { useAppState, useGuideName } from '../state/AppState'
 import { GuideBubble, PrimaryCta, SoftChoice } from './ui'
-import { SentenceFrame } from './SessionBits'
+import { MicListen } from './MicListen'
+import { HearText, SentenceFrame } from './SessionBits'
 
 type Stage = 'brief' | 'chat' | 'clear'
 
@@ -31,6 +33,8 @@ export function BossChallenge({
   onAttempt: (outcome: 'success' | 'hint' | 'fail', usedTarget: boolean) => void
 }) {
   const guideName = useGuideName()
+  const { profile } = useAppState()
+  const langHint = ttsLangFor(profile.languageId)
   const provider = useMemo(() => new MockConversationProvider(), [])
   const brief = useMemo(() => provider.brief(unit), [provider, unit])
   const [stage, setStage] = useState<Stage>('brief')
@@ -148,7 +152,7 @@ export function BossChallenge({
         aria-live="polite"
       >
         {lines.map((line) => (
-          <p
+          <div
             key={line.id}
             className={`max-w-[92%] rounded-2xl border-[2.5px] border-ink px-3 py-2 font-bold ${
               line.role === 'you'
@@ -156,11 +160,24 @@ export function BossChallenge({
                 : 'bg-paper'
             }`}
           >
-            <span className="block text-[0.7rem] font-extrabold uppercase opacity-60">
-              {line.role === 'you' ? 'You' : 'Scene'}
-            </span>
-            {line.text}
-          </p>
+            <p>
+              <span className="block text-[0.7rem] font-extrabold uppercase opacity-60">
+                {line.role === 'you' ? 'You' : 'Scene'}
+              </span>
+              {line.text}
+            </p>
+            {line.role === 'npc' && (
+              <button
+                type="button"
+                className="mt-1.5 inline-flex min-h-11 items-center gap-1.5 rounded-full border-[2.5px] border-ink bg-grid px-2.5 py-1.5 text-sm font-extrabold"
+                aria-label="Hear this line"
+                onClick={() => speakText(line.text, langHint)}
+              >
+                <Volume2 size={16} strokeWidth={2.25} aria-hidden />
+                Hear
+              </button>
+            )}
+          </div>
         ))}
       </div>
       {correction && (
@@ -171,6 +188,11 @@ export function BossChallenge({
           <p className="font-extrabold">Almost!</p>
           <p className="text-sm font-bold text-ink-soft">{correction.why}</p>
           <p className="mt-1 font-extrabold">{correction.expected}</p>
+          <HearText
+            text={correction.expected}
+            langHint={langHint}
+            label="Hear the expected line"
+          />
         </div>
       )}
       <label>
@@ -184,12 +206,14 @@ export function BossChallenge({
           placeholder={unit.targetSentence}
         />
       </label>
-      <button type="button" className="inline-flex w-fit min-h-11 items-center gap-2 rounded-full border-[2.5px] border-ink bg-paper px-3.5 py-2 font-extrabold opacity-60" disabled>
-        <Mic strokeWidth={2.25} />
-        Mic coming soon — type for now
-      </button>
+      <MicListen
+        target={unit.targetSentence}
+        langHint={langHint}
+        disabled={busy}
+        onHeard={setDraft}
+      />
       <PrimaryCta disabled={!draft.trim() || busy} onClick={() => void send()}>
-        {busy ? 'Listening…' : 'Send'}
+        {busy ? 'Waiting…' : 'Send'}
       </PrimaryCta>
       <button
         type="button"

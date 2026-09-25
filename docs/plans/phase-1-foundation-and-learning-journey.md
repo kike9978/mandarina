@@ -24,8 +24,9 @@ By the end of Phase 1 the app can:
 9. Feel unmistakably **playful** in the Game Builder Garage / lesson-map sense (workshop grid, path adventure, guide, celebrations) — not a SaaS toolkit.
 10. Let the learner **stash** phrases/vocab and optionally **import** simple local packs so learning isn’t limited to seed curriculum or cloud AI.
 11. Let the learner **grow the journey by hand**: copy a progress brief, paste it into any chat model, and bring back a JSON pack that enters the same stash path. The app never calls the model.
+12. Let the learner **hear it in the wild**: listening posts on the Journey map for videos and podcasts, found and extracted through the same brief. The app remembers the source and whether its lines were practiced. It does not play them.
 
-**Out of scope for Phase 1:** live AI conversation, Deno proxy, Groq/Gemini, Whisper, in-app model calls, full multi-script expansion, cloud sync, accounts, Anki `.apkg` import (defer), live web dictionary APIs as the core path. The hand-carried tutor pack is in scope; Boss Challenge as a live conversation stays Phase 2.
+**Out of scope for Phase 1:** live AI conversation, Deno proxy, Groq/Gemini, Whisper, in-app model calls, embedded video/podcast players, watch-time tracking, YouTube or podcast APIs, full multi-script expansion, cloud sync, accounts, Anki `.apkg` import (defer), live web dictionary APIs as the core path. The hand-carried tutor pack and listening posts are in scope; Boss Challenge as a live conversation stays Phase 2.
 
 ---
 
@@ -41,6 +42,7 @@ By the end of Phase 1 the app can:
 | Gamification | Light & meaningful | Momentum, checkpoints, session clear, ability unlocks |
 | Learner content | Stash + simple import + tutor pack | Phrases preferred; feeds same orchestrator — not a separate Anki app |
 | Tutor pack | Clipboard only | App writes the brief and reads JSON back. Learner carries both. No API key, no proxy |
+| Field listening | Posts on the Journey map | Videos and podcasts are detours on the current stop, not a second map or a new tab |
 | Local dictionary | Bundled subset + Fuse.js | Lookups offline; no live API required |
 | Auth / cloud DB | None | Local-first personal MVP |
 
@@ -57,6 +59,7 @@ REACT PWA (Vite or Next — pick one and stick)
   ├─ Curriculum fixtures (abilities → units → items)
   ├─ Learner stash & import (user phrases → same item/facet model)
   ├─ Tutor pack (progress brief out · JSON pack in · same stash path)
+  ├─ Listening posts on Journey (sources + phrases from the same brief)
   ├─ Optional local dictionary pack (Fuse.js)
   ├─ Dexie / IndexedDB
   │    ├─ learner profile & settings
@@ -137,6 +140,7 @@ Phase 1 UI must read as a **playful creative workshop / adventure lesson**, not 
 | Soft feedback | `CircleHelp`, `Lightbulb`, `Check` |
 | Soft Home rows | `RotateCcw` (comeback), `Pencil` (characters), `MessageCircle` (milestone), `BookmarkPlus` (stash) |
 | Tutor pack | `ClipboardCopy` (copy the brief), `ClipboardPaste` (bring the pack back) |
+| Listening post | `Headphones` on the Journey node; `ExternalLink` only as a hint that play happens outside the app |
 
 No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 44px.
 
@@ -149,7 +153,8 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
 | `PrimaryCta` | Game-show style Confirm / Start |
 | `SoftChoice` | Recommended vs secondary choice |
 | `CheckpointBadge` | Lucide `Crown` / “All Clear!” motif |
-| `PathMap` | Winding numbered unit steps; active = cyan double-outline |
+| `PathMap` | Winding numbered unit steps; active = cyan double-outline; optional listening post beside the active stop |
+| `ListeningPost` | Marker + sheet for one source on the current Journey stop |
 | `AbilityList` | “I can…” with ✓ ◐ ○ |
 | `MomentumBanner` | “You’re warmed up. Keep going.” |
 | `SessionChrome` | Step label, path progress, Back (Lucide) |
@@ -177,17 +182,20 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
    - Greeting + journey day count  
    - TODAY: Continue lesson (duration estimate + activity count) — **one hero composition** on grid/sunburst  
    - Soft secondary: comebacks phrased humanly, characters to practice, conversation milestone (mocked), **“Stash something new”**  
+   - If a listening post is waiting: one quiet row, “A listen is ready.” It never replaces Continue. If this language has no phrase unit yet, that listen may be the hero, because it is the curriculum.  
    - SoftChoice energy on primary vs secondary when offering challenge/postpone later
 3. **Journey**  
    Current ability path (“Getting around town”) + **winding** unit map steps 1…n on yellow grid  
    Active step = cyan double-outline; completed steps feel lit; locked steps quiet  
+   A **listening post** sits beside the active stop (see A8) — not a second map of videos  
    Optional guide tab peeking (“Alice’s Guide”–style personality)
 4. **Practice**  
    Explains that the app picks activities; optional “Start a session” that launches the orchestrated flow with fixtures.  
    Not a menu of Vocab/Grammar/Speaking tiles.
 5. **Progress**  
    Ability checklist (“I can…”) + optional light **constellation / skill-focus** mock (Skyrim-inspired, secondary only).  
-   No Vocab/Grammar % bars as the hero.
+   No Vocab/Grammar % bars as the hero.  
+   A practiced listening post may add a quiet note under its ability: “Heard in the wild.” Not a watch list.
 6. **Stash (learner content UI)**  
    Quick-add phrase flow — playful “Stash it” sheet, not an admin form (see A6).  
    **Grow the journey** lives here too: copy a brief, paste a pack back (see A7). Not a new tab.
@@ -218,6 +226,7 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
 - Celebrations: “All Clear!”, “Game Complete!” energy for session/ability clears; reserve quieter copy for mid-activity success.
 - Stash / import: “Stash it”, “Add to my journey”, “Bring a pack aboard” — not “Create card” / “Import CSV”.
 - Tutor pack: “Grow the journey”, “Copy the brief”, “Bring the pack back” — not “Export prompt”, “LLM”, “API”, or “JSON schema” as the primary labels. The paste field can say the answer should be a pack.
+- Listening: “Hear this in the wild”, “Find a listen”, “Pull the lines”, “I listened.” Never “watch time,” “catalog,” or “subscribe.”
 
 ### Acceptance
 
@@ -367,6 +376,7 @@ Same activity names and soft-failure language as seed units.
 - [ ] Visual language rule satisfied (grid/sunburst, thick outlines, no emoji-primary icons)
 - [ ] Stash + pack-import UIs demoable with fixtures
 - [ ] Tutor-pack sheet demoable: copy a fixture brief, paste sample JSON, see phrases in the library
+- [ ] Listening post demoable on the active Journey stop: sources paste, I listened, phrase paste
 - [ ] No cloud calls required to demo Phase 1 UX
 
 ---
@@ -475,6 +485,112 @@ Parser behavior for the mock and the engine:
 
 ---
 
+## A8. Listening posts — field sources on the Journey map
+
+*Videos and podcasts are detours on the current stop, found and turned into practice through the same brief as A7. Mandarina does not search, embed, or play them.*
+
+### Principles
+
+- One map. The Journey spine stays the lesson. A listening post is a marker beside the **active** stop, not a catalog and not a new tab.
+- At most one or two posts on that stop. Suggested is quiet, “listening” uses the cyan active outline, practiced is lit like a finished step.
+- Two briefs, one sheet. **Find a listen** asks for sources. **Pull the lines** asks for phrases from one source the learner already chose. Both use copy-out / paste-back. The app never calls a model.
+- A link is not a lesson. “I listened” is a tap the learner makes. “Practiced” happens only when a session on that post’s phrases clears.
+- Play happens outside the app. The post may show a title, creator, and a search line. A URL, when present, is a hint — not a player.
+- Home stays Continue-first. A waiting post is a soft row (“A listen is ready”). It becomes the hero only when this language has no phrase unit yet.
+- Progress stays “I can…”. A practiced post adds “Heard in the wild” under that ability.
+
+### Flow to mock
+
+```text
+Journey → listening post beside the active stop
+  → Hear this in the wild
+  → Find a listen (copy brief → paste sources pack → preview)
+  → One or two markers appear on that stop
+  → Learner opens a marker, listens outside the app, taps I listened
+  → Pull the lines (copy brief aimed at that source → paste phrase pack)
+  → Practice these lines (A6 bridge)
+  → Session clear lights the post
+```
+
+Part A uses a fixture post on “Talk about today” so the marker and both pastes are demoable before Dexie.
+
+### Find-a-listen brief
+
+Same learner snapshot as A7 (language, goal, abilities, known phrases, soft weak spots, sources already aboard). Ask for **at most two** listens that fit the current stop. Require title, creator, medium, why it fits, and a search line the learner can paste into YouTube or their podcast app. Treat `url` as optional — models invent links.
+
+### Pull-the-lines brief
+
+Aimed at one source the learner picked. Ask for 3–8 phrases, each with the line they appeared in (`exampleSentence`). That reply is the A7 phrase pack plus `sourceTitle`.
+
+### Reply contracts
+
+Sources pack:
+
+```json
+{
+  "kind": "sources",
+  "items": [
+    {
+      "title": "Ordering coffee in Tokyo",
+      "creator": "A street Japanese channel",
+      "medium": "video",
+      "search": "ordering coffee in Tokyo Japanese beginner",
+      "url": "https://…",
+      "why": "Uses ください, which you are ready to hear.",
+      "listenFor": ["ください", "お願いします"]
+    }
+  ]
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `title` | yes | What the learner sees on the marker |
+| `creator` | yes | Channel or show |
+| `medium` | yes | `video` or `podcast` |
+| `search` | yes | Line they can paste into the outside app |
+| `why` | yes | One coach sentence tied to the current stop |
+| `url` | no | Ignored if it is not an http(s) URL |
+| `listenFor` | no | Hints, not items, until Pull the lines |
+
+Phrase packs stay the A7 array. Optional `sourceTitle` ties each row to the post. Parser rules from A7 still apply: fence or raw JSON, drop incomplete rows, skip duplicate surfaces, ignore `due` / `mastery` / `status`.
+
+### Post states
+
+| State | Meaning | UI |
+|---|---|---|
+| `suggested` | Pack accepted, not marked listened | Quiet marker |
+| `listening` | Learner tapped “I listened” | Cyan outline |
+| `practiced` | Session on this post’s phrases cleared | Lit, like a finished step |
+
+Do not store minutes, progress bars, or “percent watched.”
+
+### Copy
+
+- Marker: **Hear this in the wild**
+- Find: **Find a listen**
+- After they return: **I listened**
+- Extract: **Pull the lines**
+- Practice: **Practice these lines**
+- Guide: “I’ll find a listen that fits this stop. You press play out there. Bring the lines back and we’ll practice them here.”
+
+### Explicitly defer
+
+- Embedded players, transcripts fetched by the app, YouTube or podcast APIs
+- A timeline of every recommendation
+- Using a source to mark an ability done by itself (practice still does that)
+- Proving the learner pressed play
+
+### Acceptance
+
+- Journey shows a fixture post beside the active stop and nowhere else on the path.
+- Pasting a sources pack adds markers. Pasting a phrase pack adds library rows tied to that post.
+- “I listened” does not light the post as practiced. Clearing the practice session does.
+- No network request. Home Continue is unchanged when a phrase unit exists.
+- A missing or nonsense `url` still saves the post from title + search.
+
+---
+
 # Part B — Backend / Local Engine Integration
 
 *Wire the Part A UI to a real local learning engine. “Backend” here means on-device persistence + scheduling (+ optional thin static hosting). No AI provider integration yet.*
@@ -512,6 +628,7 @@ Item
   source (seed|user|import)
   exampleSentence?, parentItemId?
   abilityId?   // optional tag for Progress
+  sourceId?    // set when pulled from a ListeningSource
 
 ItemFacet
   itemId, facet (recognition|listening|production|writing|contextualUse)
@@ -532,6 +649,11 @@ LearningSignal
 
 ContentPack
   id, name, importedAt, itemCount, format (json|tsv|paste)
+
+ListeningSource
+  id, languageId, abilityId, title, creator, medium (video|podcast)
+  search, url?, why, status (suggested|listening|practiced)
+  createdAt
 
 Settings
   key, value  (TTS voice, reduced motion, guide name, stashNudgePhrases, etc.)
@@ -581,6 +703,7 @@ Exact FSRS field mapping should follow `ts-fsrs` types; keep a clear adapter lay
 7. **Export backup** (nice-to-have) — dump user items/packs as JSON for device transfer without a server.
 8. **Tutor-pack brief** — build the A7 note from the live profile, abilities, known items, and open learning signals. Clipboard only.
 9. **Tutor-pack ingest** — same parser as JSON import; `source: import`; `ContentPack.format: paste`; empty FSRS cards (not due until practiced); preview already confirmed in the UI.
+10. **Listening sources** — persist A8 posts on an ability; status moves to `listening` on the learner’s tap and to `practiced` only when a session of that source’s items clears. Find-brief includes sources already aboard. Phrase rows store `sourceId`.
 
 ### Pedagogy rules (enforced in engine)
 
@@ -602,7 +725,8 @@ Exact FSRS field mapping should follow `ts-fsrs` types; keep a clear adapter lay
 - Airplane mode: stash + import file from disk + copy brief + paste pack + dictionary subset (if bundled) all work.
 - A pasted pack does not appear in comebacks until the learner has practiced it.
 - The brief omits FSRS fields even if the debug drawer can see them.
-- Home Continue still prioritizes journey/comeback language; stash is additive.
+- A listening post survives reload. “I listened” does not mark its phrases due. Session clear sets `practiced`.
+- Home Continue still prioritizes journey/comeback language; stash and posts are additive.
 
 ---
 
@@ -653,6 +777,7 @@ Thresholds can be simple (e.g. 2 correct in last 3 recognition attempts) — tun
 | Fresh user stashes | “You stashed 2 phrases — want to lock them in?” |
 | Pack imported | “Pack aboard — 24 phrases ready when you are” |
 | Tutor pack pasted | Same line; phrases wait for “Practice these” |
+| Listening post waiting | “A listen is ready” — soft row, not the hero, unless no phrase unit exists |
 
 ### Acceptance
 
@@ -678,6 +803,7 @@ Thresholds can be simple (e.g. 2 correct in last 3 recognition attempts) — tun
 | StashSheet | create user item/unit + facets; optional enqueue |
 | PackImport | parse → ContentPack + items |
 | TutorPackSheet | progress snapshot → brief text; pasted JSON → same ingest as PackImport |
+| ListeningPost | find brief / pull-lines brief; sources pack → ListeningSource; phrase pack → items with sourceId; session clear → practiced |
 | Dictionary look-up | Fuse search → optional stash |
 
 ### Rating mapping (suggestion)
@@ -728,6 +854,7 @@ Keep mapping in one module for later tuning.
 - [ ] Seed curriculum for one ability/unit
 - [ ] Stash + JSON/TSV import persist and schedule via template bridges
 - [ ] Tutor brief built from real progress; pasted JSON persists as import stash and does not schedule until practiced
+- [ ] Listening posts persist on an ability; practiced only after the linked session clears
 - [ ] Local dictionary subset searchable (or explicitly deferred with issue note)
 - [ ] `ts-fsrs` adapter per facet
 - [ ] Orchestrator drives Home + session queue (seed + user interleave)
@@ -749,6 +876,7 @@ Keep mapping in one module for later tuning.
 - Copy review for jargon leaks (FSRS, SRS, “due cards”) and stash tone.
 - Stash + pack-import UI walkthrough.
 - Tutor pack: copy brief, paste fenced JSON, paste a duplicate surface, paste an empty reply.
+- Listening post: fixture marker on the active Journey stop only; sources paste; “I listened”; phrase paste; practiced only after session clear.
 
 ### Engine (Part B)
 
@@ -756,6 +884,7 @@ Keep mapping in one module for later tuning.
 - Integration: complete unit → ability unlock; stash → session → facet due change.
 - Import: sample JSON/TSV golden files, plus a fenced tutor-pack reply and a duplicate-surface case.
 - Brief builder: fixture profile yields a note with goal, abilities, known surfaces, and no FSRS words.
+- Listening source: status stays `listening` until the linked session ends; find-brief lists sources already stored.
 - Persistence: reload mid-session; reload after stash.
 - Time travel: advance clock → comeback session composition includes user items when due.
 
@@ -770,12 +899,14 @@ Keep mapping in one module for later tuning.
 | M3 Celebrations & soft fail | A | Sunburst/crown clear + soft failure feel right |
 | M3b Stash & packs UI | A | Stash sheet + import mock demoable |
 | M3c Tutor pack UI | A | Copy brief + paste preview demoable on Stash |
+| M3d Listening posts | A | Marker on the active Journey stop; both pastes demoable |
 | M4 Schema & seed | B | Data survives reload |
 | M4b Stash engine | B | User/import items + template bridges live |
 | M4c Tutor pack engine | B | Brief from live progress; pasted pack persists like import |
+| M4d Listening sources | B | Posts persist; practiced only after the linked session clears |
 | M5 Orchestrator live | B | Home Start is engine-driven (seed + interleave) |
 | M6 Offline PWA | B | Full loop + stash/import without network |
-| M7 Phase 1 freeze | A+B | Vertical slice + stash + tutor pack demoable on phone |
+| M7 Phase 1 freeze | A+B | Vertical slice + stash + tutor pack + one listening post demoable on phone |
 
 ---
 
@@ -790,6 +921,6 @@ Phase 1 leaves explicit extension points:
 5. Facet `contextualUse` mostly idle until live conversation exists.
 6. User-stashed phrases — including tutor packs — become natural Boss Challenge targets once AI is live.
 7. Playfulness tokens/components reused — Phase 2 must not introduce a flatter “tools” aesthetic for writing/AI screens.
-8. **Tutor pack stays the slow path.** Phase 2’s live proxy does not replace “Copy the brief / Bring the pack back.” In-session conversation and between-session curriculum growth remain different jobs.
+8. **Tutor pack stays the slow path.** Phase 2’s live proxy does not replace “Copy the brief / Bring the pack back.” In-session conversation and between-session curriculum growth remain different jobs. Listening posts stay on that slow path too: Phase 2 does not add a player or a content catalog.
 
 Do not start Deno/Groq work until M7 is demoable.

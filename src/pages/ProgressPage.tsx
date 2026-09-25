@@ -9,10 +9,16 @@ interface JourneyStats {
   sessionsDone: number
   attempts: number
   stashCount: number
+  written: number
 }
 
 export function ProgressPage() {
-  const { abilities, profile, stash } = useAppState()
+  const { abilities, profile, stash, listeningSources, bossClears } = useAppState()
+  const heardIds = [
+    ...new Set(
+      listeningSources.filter((s) => s.status === 'practiced').map((s) => s.abilityId),
+    ),
+  ]
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
   const level = abilities.filter((a) => a.status === 'done').length + 1
@@ -22,6 +28,7 @@ export function ProgressPage() {
     sessionsDone: 0,
     attempts: 0,
     stashCount: stash.length,
+    written: 0,
   })
 
   useEffect(() => {
@@ -33,11 +40,18 @@ export function ProgressPage() {
         .toArray()
       const done = sessions.filter((s) => s.endedAt).length
       const attempts = await db.attempts.count()
+      const writingWins = await db.attempts
+        .filter((a) => a.facet === 'writing' && a.outcome === 'success')
+        .toArray()
+      const written = new Set(
+        writingWins.map((a) => a.itemId).filter(Boolean),
+      ).size
       if (!cancelled) {
         setStats({
           sessionsDone: done,
           attempts,
           stashCount: stash.length,
+          written,
         })
       }
     })()
@@ -93,6 +107,14 @@ export function ProgressPage() {
           <li className="rounded-2xl border-[2.5px] border-ink bg-paper/90 px-3.5 py-3 font-bold">
             Phrases in your stash · {stats.stashCount}
           </li>
+          <li className="rounded-2xl border-[2.5px] border-ink bg-paper/90 px-3.5 py-3 font-bold">
+            Used in a scene · {bossClears}
+          </li>
+          <li className="rounded-2xl border-[2.5px] border-ink bg-paper/90 px-3.5 py-3 font-bold">
+            {lang.orthographyMode === 'latin-sounds'
+              ? `Spellings you can write · ${stats.written}`
+              : `Marks you can write · ${stats.written}`}
+          </li>
         </ul>
 
         <h2 className="text-lg">
@@ -102,7 +124,7 @@ export function ProgressPage() {
         </h2>
         <AbilityList abilities={scriptAbilities} />
         <h2 className="text-lg">I can use the language</h2>
-        <AbilityList abilities={speakAbilities} />
+        <AbilityList abilities={speakAbilities} heardIds={heardIds} />
       </div>
     </div>
   )

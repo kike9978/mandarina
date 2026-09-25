@@ -4,7 +4,7 @@ import { rateFacet } from './fsrsAdapter'
 
 export async function startDbSession(input: {
   languageId: string
-  kind: 'journey' | 'script' | 'stash' | 'comeback' | 'mixed'
+  kind: 'journey' | 'script' | 'stash' | 'comeback' | 'mixed' | 'listen'
   unitId?: string
 }): Promise<string> {
   const id = `sess-${Date.now()}`

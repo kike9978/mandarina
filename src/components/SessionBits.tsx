@@ -1,6 +1,7 @@
-import { ArrowLeft, CircleHelp, Lightbulb, Pause } from 'lucide-react'
+import { ArrowLeft, CircleHelp, Lightbulb, Pause, Volume2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { speakText } from '../learning/tts'
 
 export function SessionChrome({
   stepLabel,
@@ -122,6 +123,28 @@ export function SoftFeedback({
         </>
       )}
     </div>
+  )
+}
+
+export function HearText({
+  text,
+  langHint,
+  label = 'Hear it',
+}: {
+  text: string
+  langHint?: string
+  label?: string
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-flex w-fit min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border-[2.5px] border-ink bg-paper px-3.5 py-2 font-extrabold"
+      aria-label={label}
+      onClick={() => speakText(text, langHint)}
+    >
+      <Volume2 strokeWidth={2.25} aria-hidden />
+      {label}
+    </button>
   )
 }
 

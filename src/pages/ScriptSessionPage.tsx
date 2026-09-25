@@ -11,6 +11,20 @@ import {
 } from '../components/SessionBits'
 import { WriteCanvas } from '../components/WriteCanvas'
 
+function highlightGlyph(phrase: string, glyph: string): ReactNode {
+  const idx = phrase.toLowerCase().indexOf(glyph.toLowerCase())
+  if (idx < 0) return phrase
+  return (
+    <>
+      {phrase.slice(0, idx)}
+      <mark className="rounded-md bg-cyan px-0.5 not-italic">
+        {phrase.slice(idx, idx + glyph.length)}
+      </mark>
+      {phrase.slice(idx + glyph.length)}
+    </>
+  )
+}
+
 export function ScriptSessionPage() {
   const navigate = useNavigate()
   const {
@@ -96,6 +110,13 @@ export function ScriptSessionPage() {
             glyph={focus.glyph}
             reading={focus.reading}
             glyphId={focus.id}
+            usePhrase={
+              focus.usePhrase ??
+              glyphs.find((g) => g.usePhrase)?.usePhrase
+            }
+            useGloss={
+              focus.useGloss ?? glyphs.find((g) => g.useGloss)?.useGloss
+            }
             guideName={guideName}
             onNext={() => advanceScriptFrom('use')}
           />
@@ -500,27 +521,42 @@ function UseIt({
   glyph,
   reading,
   glyphId,
+  usePhrase,
+  useGloss,
   guideName,
   onNext,
 }: {
   glyph: string
   reading: string
   glyphId: string
+  usePhrase?: string
+  useGloss?: string
   guideName: string
   onNext: () => void
 }) {
   const { logAttempt } = useAppState()
+  const highlighted = usePhrase
+    ? highlightGlyph(usePhrase, glyph)
+    : null
 
   return (
     <Shell eyebrow="Use It">
       <GuideBubble name={guideName}>
         Marks exist to unlock words. You&apos;ve seen, heard, spotted, matched,
-        and traced — checkpoint time.
+        and traced — now spot it in the wild.
       </GuideBubble>
       <div className="rounded-[22px] border-[3px] border-ink bg-paper p-4 shadow-chunky">
-        <p className="text-center font-display text-5xl font-bold">{glyph}</p>
+        {highlighted ? (
+          <p className="text-center font-display text-4xl font-bold leading-tight">
+            {highlighted}
+          </p>
+        ) : (
+          <p className="text-center font-display text-5xl font-bold">{glyph}</p>
+        )}
         <p className="mt-2 text-center font-extrabold text-ink-soft">
-          shows up when you need “{reading}”
+          {useGloss
+            ? `“${usePhrase}” · ${useGloss}`
+            : `shows up when you need “${reading}”`}
         </p>
       </div>
       <PrimaryCta

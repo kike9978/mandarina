@@ -44,6 +44,7 @@ export interface DbItem {
   source: ContentSource
   exampleSentence?: string
   abilityId?: string
+  sourceId?: string
 }
 
 export interface DbFsrsCard {
@@ -60,7 +61,7 @@ export interface DbSession {
   startedAt: string
   endedAt?: string
   unitId?: string
-  kind: 'journey' | 'comeback' | 'mixed' | 'stash' | 'script'
+  kind: 'journey' | 'comeback' | 'mixed' | 'stash' | 'script' | 'listen'
   languageId: string
 }
 
@@ -96,6 +97,26 @@ export interface DbStash {
   abilityTag?: string
   source: 'user' | 'import' | 'lookup'
   languageId: string
+  createdAt: string
+  sourceId?: string
+}
+
+export type ListeningMedium = 'video' | 'podcast'
+export type ListeningStatus = 'suggested' | 'listening' | 'practiced'
+
+export interface DbListeningSource {
+  id: string
+  languageId: string
+  abilityId: string
+  title: string
+  creator: string
+  medium: ListeningMedium
+  search: string
+  url?: string
+  why: string
+  listenFor?: string[]
+  transcript?: string
+  status: ListeningStatus
   createdAt: string
 }
 

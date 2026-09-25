@@ -4,11 +4,13 @@ export interface TutorPackRow {
   reading?: string
   exampleSentence?: string
   abilityTag?: string
+  sourceTitle?: string
 }
 
 export interface ParseTutorPackResult {
   rows: TutorPackRow[]
   noteTweaks: string[]
+  sourceItems: unknown[]
   skippedDuplicate: number
   dropped: number
   error?: string
@@ -28,6 +30,7 @@ function asRow(raw: unknown): TutorPackRow | null {
     reading: String(o.reading ?? '').trim() || undefined,
     exampleSentence: String(o.exampleSentence ?? '').trim() || undefined,
     abilityTag: String(o.abilityTag ?? '').trim() || undefined,
+    sourceTitle: String(o.sourceTitle ?? '').trim() || undefined,
   }
 }
 
@@ -115,17 +118,27 @@ export function mergeNoteTweaks(existing: string[], incoming: string[]): string[
   return merged
 }
 
-function phrasesAndTweaks(value: unknown): { items: unknown[]; tweaks: string[] } {
-  if (Array.isArray(value)) return { items: value, tweaks: [] }
+function phrasesTweaksAndSources(value: unknown): {
+  items: unknown[]
+  tweaks: string[]
+  sourceItems: unknown[]
+} {
+  if (Array.isArray(value)) return { items: value, tweaks: [], sourceItems: [] }
   if (value && typeof value === 'object') {
     const o = value as Record<string, unknown>
     const nested = o.phrases ?? o.items ?? o.pack
+    const sourceItems = Array.isArray(o.sources)
+      ? o.sources
+      : o.kind === 'sources' && Array.isArray(o.items)
+        ? o.items
+        : []
     return {
-      items: Array.isArray(nested) ? nested : [],
+      items: Array.isArray(nested) && o.kind !== 'sources' ? nested : [],
       tweaks: sanitizeNoteTweaks(o.noteTweaks ?? o.coachNotes ?? o.briefTips),
+      sourceItems,
     }
   }
-  return { items: [], tweaks: [] }
+  return { items: [], tweaks: [], sourceItems: [] }
 }
 
 export function parseTutorPack(
@@ -138,12 +151,17 @@ export function parseTutorPack(
     return {
       rows: [],
       noteTweaks: [],
+      sourceItems: [],
       skippedDuplicate: 0,
       dropped: 0,
       error: 'Hmm — no phrases in that pack',
     }
   }
-  const { items: arr, tweaks: noteTweaks } = phrasesAndTweaks(extracted)
+  const {
+    items: arr,
+    tweaks: noteTweaks,
+    sourceItems,
+  } = phrasesTweaksAndSources(extracted)
 
   const rows: TutorPackRow[] = []
   let skippedDuplicate = 0
@@ -165,10 +183,11 @@ export function parseTutorPack(
     rows.push(row)
   }
 
-  if (rows.length === 0 && noteTweaks.length === 0) {
+  if (rows.length === 0 && noteTweaks.length === 0 && sourceItems.length === 0) {
     return {
       rows,
       noteTweaks,
+      sourceItems,
       skippedDuplicate,
       dropped,
       error:
@@ -178,7 +197,7 @@ export function parseTutorPack(
     }
   }
 
-  return { rows, noteTweaks, skippedDuplicate, dropped }
+  return { rows, noteTweaks, sourceItems, skippedDuplicate, dropped }
 }
 
 /** JSON array, fenced JSON, or TSV (surface\\tgloss\\texample). */
@@ -191,6 +210,7 @@ export function parsePackOrTsv(
     return {
       rows: [],
       noteTweaks: [],
+      sourceItems: [],
       skippedDuplicate: 0,
       dropped: 0,
       error: 'Hmm — no phrases in that pack',
@@ -228,6 +248,7 @@ export function parsePackOrTsv(
       return {
         rows,
         noteTweaks: [],
+        sourceItems: [],
         skippedDuplicate,
         dropped,
         error:
@@ -236,7 +257,7 @@ export function parsePackOrTsv(
             : 'Hmm — no phrases in that pack',
       }
     }
-    return { rows, noteTweaks: [], skippedDuplicate, dropped }
+    return { rows, noteTweaks: [], sourceItems: [], skippedDuplicate, dropped }
   }
   return parseTutorPack(raw, existingSurfaces)
 }
@@ -332,10 +353,12 @@ ${weakLines}${tipBlock}
 
 What to write
 ${ask}
-Each phrase: {"surface","gloss","reading?","exampleSentence?","abilityTag?"}
-Reply as a phrase array, or as {"phrases":[...],"noteTweaks":["up to 4 short rules for THIS note next time"]}.
+Each phrase: {"surface","gloss","reading?","exampleSentence?","abilityTag?","sourceTitle?"}
+Also include 1 listen that Mandarina can play in-app. url MUST be a real https YouTube, Vimeo, or direct audio link — no guessed or search-only rows.
+If you already have the spoken words, put them in transcript so we can pull vocab without another hunt.
+Reply as {"phrases":[...],"sources":[{"title","creator","medium":"video|podcast","url","why","listenFor?","transcript?"}],"noteTweaks":["up to 4 short rules for THIS note next time"]}.
 noteTweaks are optional style/topic rules only. Do not rewrite the learner snapshot. Do not set schedules or mark skills done.
-Cap 3–8 phrases.`
+Cap 3–8 phrases and 1 listen.`
 }
 
 function briefAsk(input: TutorBriefInput): string {

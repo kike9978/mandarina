@@ -19,6 +19,7 @@ import {
   type PhraseUnit,
   type ScriptActivityId,
   type ScriptPathStep,
+  type ListeningSource,
   type StashedPhrase,
 } from '../data/fixtures'
 import type {
@@ -37,13 +38,16 @@ import {
 } from '../learning/attempts'
 import {
   countDueFacets,
+  countDueWritingFacets,
   ensureFsrsCard,
   listDueFacets,
 } from '../learning/fsrsAdapter'
+import { clipTranscript } from '../learning/transcript'
 import {
   attachComebacks,
   composeJourneyOrder,
   decideDailyPlan,
+  isBossReady,
   COMEBACK_CAP,
 } from '../learning/orchestrator'
 import {
@@ -85,7 +89,7 @@ function pathFromOrder(order: ActivityId[], activeId: ActivityId): PathStep[] {
   return withProgress(steps, activeId)
 }
 
-type SessionKind = 'journey' | 'stash' | 'script' | 'comeback' | 'mixed'
+type SessionKind = 'journey' | 'stash' | 'script' | 'comeback' | 'mixed' | 'listen'
 
 interface SessionSnap {
   sessionId: string
@@ -94,6 +98,7 @@ interface SessionSnap {
   activityOrder: ActivityId[]
   unit: PhraseUnit
   momentum: boolean
+  listenSourceId?: string
 }
 
 async function persistStashLearningItem(input: {
@@ -104,6 +109,7 @@ async function persistStashLearningItem(input: {
   reading?: string
   exampleSentence?: string
   source: 'user' | 'import'
+  sourceId?: string
 }): Promise<void> {
   const itemId = `${input.languageId}:user:${input.stashId}`
   await db.items.put({
@@ -115,6 +121,7 @@ async function persistStashLearningItem(input: {
     type: 'phrase',
     source: input.source,
     exampleSentence: input.exampleSentence,
+    sourceId: input.sourceId,
   })
   for (const facet of STASH_FACETS) {
     await ensureFsrsCard(itemId, facet)
@@ -155,6 +162,7 @@ interface AppStateValue {
   onboarded: boolean
   profile: LearnerProfile
   dueCount: number
+  writingDueCount: number
   lastActiveAt: string | null
   completeOnboarding: (profile: Omit<LearnerProfile, 'journeyDay'>) => void
   steps: PathStep[]
@@ -168,12 +176,20 @@ interface AppStateValue {
   momentum: boolean
   abilities: Ability[]
   stash: StashedPhrase[]
+  listeningSources: ListeningSource[]
   needsScriptFirst: boolean
   activeUnit: PhraseUnit | null
   sessionKind: SessionKind | null
   startSession: () => void
-  startStashSession: (stashIds?: string[]) => void
+  startStashSession: (
+    stashIds?: string[],
+    opts?: { listenSourceId?: string },
+  ) => void
   startScriptSession: () => void
+  startBossSession: () => void
+  recordBossClear: () => void
+  bossClears: number
+  bossReady: boolean
   advanceFrom: (id: ActivityId) => void
   advanceScriptFrom: (id: ScriptActivityId) => void
   resetSession: () => void
@@ -183,6 +199,12 @@ interface AppStateValue {
     phrases: Omit<StashedPhrase, 'id'>[],
     meta?: { format?: 'json' | 'tsv' | 'paste'; name?: string },
   ) => void
+  addListeningSources: (
+    sources: Omit<ListeningSource, 'id' | 'createdAt' | 'languageId' | 'status'>[],
+  ) => Promise<ListeningSource[]>
+  saveSourceTranscript: (sourceId: string, transcript: string) => Promise<void>
+  markListened: (sourceId: string) => void
+  markListeningPracticed: (sourceId: string) => void
   logAttempt: (input: {
     activityType: string
     itemKey?: string
@@ -199,7 +221,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [onboarded, setOnboarded] = useState(false)
   const [profile, setProfile] = useState<LearnerProfile>(defaultProfile)
   const [dueCount, setDueCount] = useState(0)
+  const [writingDueCount, setWritingDueCount] = useState(0)
   const [lastActiveAt, setLastActiveAt] = useState<string | null>(null)
+
+  const refreshDueCounts = useCallback(async (languageId: string) => {
+    const [due, writing] = await Promise.all([
+      countDueFacets(languageId),
+      countDueWritingFacets(languageId),
+    ])
+    setDueCount(due)
+    setWritingDueCount(writing)
+  }, [])
   const [steps, setSteps] = useState<PathStep[]>(SESSION_STEPS)
   const [scriptSteps, setScriptSteps] = useState<ScriptPathStep[]>(
     SCRIPT_SESSION_STEPS,
@@ -216,6 +248,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     buildAbilities(defaultProfile.languageId, defaultProfile.scriptFamiliarity),
   )
   const [stash, setStash] = useState<StashedPhrase[]>([])
+  const [listeningSources, setListeningSources] = useState<ListeningSource[]>([])
+  const [listenSourceId, setListenSourceId] = useState<string | null>(null)
+  const [bossClears, setBossClears] = useState(0)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [activeUnit, setActiveUnit] = useState<PhraseUnit | null>(null)
   const [sessionKind, setSessionKind] = useState<SessionKind | null>(null)
@@ -260,9 +295,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
               exampleSentence: r.exampleSentence,
               abilityTag: r.abilityTag,
               source: r.source,
+              sourceId: r.sourceId,
             })),
           )
-          setDueCount(await countDueFacets(p.languageId))
+          const posts = await db.listeningSources
+            .where('languageId')
+            .equals(p.languageId)
+            .toArray()
+          setListeningSources(
+            posts.map((row) => ({
+              id: row.id,
+              languageId: row.languageId as LanguageId,
+              abilityId: row.abilityId,
+              title: row.title,
+              creator: row.creator,
+              medium: row.medium,
+              search: row.search,
+              url: row.url,
+              why: row.why,
+              listenFor: row.listenFor,
+              transcript: row.transcript,
+              status: row.status,
+              createdAt: row.createdAt,
+            })),
+          )
+          const clears = await db.settings.get(`boss-clears:${p.languageId}`)
+          setBossClears(Number(clears?.value ?? 0) || 0)
+          await refreshDueCounts(p.languageId)
         }
       } else {
         // One-time migrate from legacy localStorage profile
@@ -318,6 +377,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setSessionStarted(true)
             setSessionCleared(false)
             setMomentum(Boolean(snap.momentum))
+            setListenSourceId(snap.listenSourceId ?? null)
           }
         }
       } catch {
@@ -363,15 +423,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         onboarded: true,
       })
       await syncAbilitiesForProfile(full.languageId, full.scriptFamiliarity)
-      setDueCount(await countDueFacets(full.languageId))
+      await refreshDueCounts(full.languageId)
     },
-    [],
+    [refreshDueCounts],
   )
 
   const startSession = useCallback(async () => {
     const seed = getPhraseUnit(profile.languageId)
     if (!seed) return
 
+    setSessionStarted(true)
+    setSessionCleared(false)
     const dueRows = await listDueFacets(profile.languageId, COMEBACK_CAP)
     const plan = decideDailyPlan({
       needsScriptFirst: false,
@@ -393,8 +455,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         : 'mixed'
       : 'journey'
 
-    setSessionStarted(true)
-    setSessionCleared(false)
     setMomentum(false)
     setSessionKind(kind)
     setActiveUnit(unit)
@@ -421,26 +481,28 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [profile.languageId, stash.length, lastActiveAt])
 
   const startStashSession = useCallback(
-    async (stashIds?: string[]) => {
+    async (stashIds?: string[], opts?: { listenSourceId?: string }) => {
       const pool = stashIds?.length
         ? stash.filter((s) => stashIds.includes(s.id))
         : [...stash].slice(-stashPracticeCap()).reverse()
       const unit = buildUnitFromStash(pool, profile.languageId)
       if (!unit) return
 
+      const kind: SessionKind = opts?.listenSourceId ? 'listen' : 'stash'
       const order =
         unit.productionReady === false ? STASH_LIGHT_ORDER : JOURNEY_ORDER
       setSessionStarted(true)
       setSessionCleared(false)
       setMomentum(false)
-      setSessionKind('stash')
+      setSessionKind(kind)
+      setListenSourceId(opts?.listenSourceId ?? null)
       setActiveUnit(unit)
       setActivityOrder(order)
       setCurrentActivity('meet')
       setSteps(pathFromOrder(order, 'meet'))
       const sid = await startDbSession({
         languageId: profile.languageId,
-        kind: 'stash',
+        kind,
         unitId: unit.id,
       })
       setActiveSessionId(sid)
@@ -448,11 +510,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         key: SESSION_SNAP_KEY,
         value: JSON.stringify({
           sessionId: sid,
-          kind: 'stash',
+          kind,
           currentActivity: 'meet',
           activityOrder: order,
           unit,
           momentum: false,
+          listenSourceId: opts?.listenSourceId,
         } satisfies SessionSnap),
       })
     },
@@ -471,6 +534,77 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     })
     setActiveSessionId(sid)
   }, [profile.languageId])
+
+  const startBossSession = useCallback(async () => {
+    const seed = getPhraseUnit(profile.languageId)
+    const withExample = stash.filter((s) => s.exampleSentence?.trim())
+    const fromStash = !seed
+      ? buildUnitFromStash(
+          withExample.slice(-stashPracticeCap()).reverse(),
+          profile.languageId,
+        )
+      : null
+    const unit = seed ?? fromStash
+    if (!unit) return
+
+    const kind: SessionKind = seed ? 'journey' : 'stash'
+    const order = seed
+      ? composeJourneyOrder('journey', false)
+      : unit.productionReady === false
+        ? [...STASH_LIGHT_ORDER]
+        : composeJourneyOrder('journey', false)
+    if (!order.includes('boss')) {
+      const clearAt = order.indexOf('clear')
+      order.splice(clearAt >= 0 ? clearAt : order.length, 0, 'boss')
+    }
+
+    setSessionStarted(true)
+    setSessionCleared(false)
+    setMomentum(true)
+    setSessionKind(kind)
+    setListenSourceId(null)
+    setActiveUnit(unit)
+    setActivityOrder(order)
+    setCurrentActivity('boss')
+    setSteps(pathFromOrder(order, 'boss'))
+    const sid = await startDbSession({
+      languageId: profile.languageId,
+      kind,
+      unitId: unit.id,
+    })
+    setActiveSessionId(sid)
+    await db.settings.put({
+      key: SESSION_SNAP_KEY,
+      value: JSON.stringify({
+        sessionId: sid,
+        kind,
+        currentActivity: 'boss',
+        activityOrder: order,
+        unit,
+        momentum: true,
+      } satisfies SessionSnap),
+    })
+  }, [profile.languageId, stash])
+
+  const recordBossClear = useCallback(async () => {
+    const next = bossClears + 1
+    setBossClears(next)
+    await db.settings.put({
+      key: `boss-clears:${profile.languageId}`,
+      value: String(next),
+    })
+  }, [bossClears, profile.languageId])
+
+  const talkTodayDone =
+    abilities.find((a) => a.id === 'talk-today')?.status === 'done'
+  const stashWithExample = stash.filter((s) => s.exampleSentence?.trim()).length
+  const phraseReadyNow = Boolean(getPhraseUnit(profile.languageId))
+  const bossReady = isBossReady({
+    needsScriptFirst,
+    phraseReady: phraseReadyNow,
+    talkTodayDone: Boolean(talkTodayDone),
+    stashWithExample,
+  })
 
   const logAttempt = useCallback(
     (input: {
@@ -492,10 +626,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         outcome: input.outcome,
         hintsUsed: input.hintsUsed,
       }).then(async () => {
-        setDueCount(await countDueFacets(profile.languageId))
+        await refreshDueCounts(profile.languageId)
       })
     },
-    [activeSessionId, profile.languageId],
+    [activeSessionId, profile.languageId, refreshDueCounts],
   )
 
   const advanceFrom = useCallback(
@@ -504,6 +638,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!next) return
       if (next === 'clear') {
         setSessionCleared(true)
+        if (sessionKind === 'listen' && listenSourceId) {
+          await db.listeningSources.update(listenSourceId, { status: 'practiced' })
+          setListeningSources((prev) =>
+            prev.map((s) =>
+              s.id === listenSourceId ? { ...s, status: 'practiced' as const } : s,
+            ),
+          )
+        }
         if (
           sessionKind === 'journey' ||
           sessionKind === 'mixed' ||
@@ -526,7 +668,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setLastActiveAt(stamp)
         setProfile((p) => ({ ...p, journeyDay: nextDay }))
         await clearSessionSnap()
-        setDueCount(await countDueFacets(profile.languageId))
+        await refreshDueCounts(profile.languageId)
         return
       }
       setCurrentActivity(next)
@@ -551,11 +693,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       activeSessionId,
       activityOrder,
       sessionKind,
+      listenSourceId,
       clearSessionSnap,
       profile.languageId,
       profile.journeyDay,
       activeUnit,
       momentum,
+      refreshDueCounts,
     ],
   )
 
@@ -595,12 +739,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         })
         setLastActiveAt(stamp)
         setProfile((p) => ({ ...p, journeyDay: nextDay }))
+        await refreshDueCounts(profile.languageId)
         return
       }
       setCurrentScriptActivity(next)
       setScriptSteps((prev) => withProgress(prev, next))
     },
-    [activeSessionId, profile.languageId, profile.journeyDay],
+    [activeSessionId, profile.languageId, profile.journeyDay, refreshDueCounts],
   )
 
   const resetSession = useCallback(() => {
@@ -612,6 +757,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setActiveSessionId(null)
     setActiveUnit(null)
     setSessionKind(null)
+    setListenSourceId(null)
     setActivityOrder(JOURNEY_ORDER)
     void clearSessionSnap()
   }, [clearSessionSnap])
@@ -683,6 +829,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           reading: row.reading,
           exampleSentence: row.exampleSentence,
           source: 'import',
+          sourceId: row.sourceId,
         })
       }
       await db.packs.add({
@@ -696,12 +843,83 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [profile.languageId],
   )
 
+  const addListeningSources = useCallback(
+    async (
+      sources: Omit<
+        ListeningSource,
+        'id' | 'createdAt' | 'languageId' | 'status'
+      >[],
+    ) => {
+      const stamped: ListeningSource[] = sources.map((s, i) => ({
+        ...s,
+        id: `listen-${Date.now()}-${i}`,
+        languageId: profile.languageId,
+        status: 'suggested',
+        createdAt: new Date().toISOString(),
+      }))
+      setListeningSources((prev) => [...prev, ...stamped])
+      await db.listeningSources.bulkPut(stamped)
+      return stamped
+    },
+    [profile.languageId],
+  )
+
+  const saveSourceTranscript = useCallback(
+    async (sourceId: string, transcript: string) => {
+      const words = clipTranscript(transcript).text
+      if (!words) return
+      const row = await db.listeningSources.get(sourceId)
+      if (row) {
+        const nextStatus =
+          row.status === 'practiced' ? 'practiced' : 'listening'
+        await db.listeningSources.put({
+          ...row,
+          transcript: words,
+          status: nextStatus,
+        })
+      }
+      setListeningSources((prev) =>
+        prev.map((s) =>
+          s.id === sourceId
+            ? {
+                ...s,
+                transcript: words,
+                status: s.status === 'practiced' ? 'practiced' : 'listening',
+              }
+            : s,
+        ),
+      )
+    },
+    [],
+  )
+
+  const markListened = useCallback(async (sourceId: string) => {
+    await db.listeningSources.update(sourceId, { status: 'listening' })
+    setListeningSources((prev) =>
+      prev.map((s) =>
+        s.id === sourceId && s.status === 'suggested'
+          ? { ...s, status: 'listening' as const }
+          : s,
+      ),
+    )
+  }, [])
+
+  const markListeningPracticed = useCallback(async (sourceId: string) => {
+    await db.listeningSources.update(sourceId, { status: 'practiced' })
+    setListeningSources((prev) =>
+      prev.map((s) =>
+        s.id === sourceId ? { ...s, status: 'practiced' as const } : s,
+      ),
+    )
+  }, [])
+
   const value = useMemo(
     () => ({
       ready,
       onboarded,
       profile,
       dueCount,
+      writingDueCount,
       lastActiveAt,
       completeOnboarding,
       steps,
@@ -715,18 +933,27 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       momentum,
       abilities,
       stash,
+      listeningSources,
       needsScriptFirst,
       activeUnit,
       sessionKind,
       startSession,
       startStashSession,
       startScriptSession,
+      startBossSession,
+      recordBossClear,
+      bossClears,
+      bossReady,
       advanceFrom,
       advanceScriptFrom,
       resetSession,
       resetScriptSession,
       addStash,
       importPhrases,
+      addListeningSources,
+      saveSourceTranscript,
+      markListened,
+      markListeningPracticed,
       logAttempt,
     }),
     [
@@ -734,6 +961,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       onboarded,
       profile,
       dueCount,
+      writingDueCount,
       lastActiveAt,
       completeOnboarding,
       steps,
@@ -747,18 +975,27 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       momentum,
       abilities,
       stash,
+      listeningSources,
       needsScriptFirst,
       activeUnit,
       sessionKind,
       startSession,
       startStashSession,
       startScriptSession,
+      startBossSession,
+      recordBossClear,
+      bossClears,
+      bossReady,
       advanceFrom,
       advanceScriptFrom,
       resetSession,
       resetScriptSession,
       addStash,
       importPhrases,
+      addListeningSources,
+      saveSourceTranscript,
+      markListened,
+      markListeningPracticed,
       logAttempt,
     ],
   )

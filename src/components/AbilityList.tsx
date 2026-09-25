@@ -6,7 +6,13 @@ const mark = {
   locked: '○',
 } as const
 
-export function AbilityList({ abilities }: { abilities: Ability[] }) {
+export function AbilityList({
+  abilities,
+  heardIds = [],
+}: {
+  abilities: Ability[]
+  heardIds?: string[]
+}) {
   return (
     <ul className="m-0 grid list-none gap-2.5 p-0">
       {abilities.map((a) => (
@@ -28,7 +34,14 @@ export function AbilityList({ abilities }: { abilities: Ability[] }) {
           >
             {mark[a.status]}
           </span>
-          <span>{a.title}</span>
+          <span className="grid gap-0.5">
+            <span>{a.title}</span>
+            {heardIds.includes(a.id) && (
+              <span className="text-sm font-bold text-ink-soft">
+                Heard in the wild
+              </span>
+            )}
+          </span>
         </li>
       ))}
     </ul>

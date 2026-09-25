@@ -6,6 +6,7 @@ import type {
   DbFsrsCard,
   DbItem,
   DbLearningSignal,
+  DbListeningSource,
   DbProfile,
   DbSession,
   DbSetting,
@@ -23,6 +24,7 @@ export class MandarinaDB extends Dexie {
   stash!: EntityTable<DbStash, 'id'>
   packs!: EntityTable<DbContentPack, 'id'>
   settings!: EntityTable<DbSetting, 'key'>
+  listeningSources!: EntityTable<DbListeningSource, 'id'>
 
   constructor() {
     super('mandarina')
@@ -37,6 +39,11 @@ export class MandarinaDB extends Dexie {
       stash: 'id, languageId, createdAt',
       packs: 'id, importedAt',
       settings: 'key',
+    })
+    this.version(2).stores({
+      items: 'id, languageId, unitId, source, surface, sourceId',
+      stash: 'id, languageId, createdAt, sourceId',
+      listeningSources: 'id, languageId, abilityId, status, createdAt',
     })
   }
 }

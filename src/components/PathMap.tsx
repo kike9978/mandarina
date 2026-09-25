@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { PathNodeState } from '../data/fixtures'
 
 export interface PathMapStep {
@@ -10,9 +11,11 @@ export interface PathMapStep {
 export function PathMap({
   steps,
   onSelect,
+  activeSlot,
 }: {
   steps: PathMapStep[]
   onSelect?: (id: string) => void
+  activeSlot?: ReactNode
 }) {
   return (
     <ol className="m-0 grid list-none gap-[18px] px-2 py-2 pb-6" aria-label="Lesson path">
@@ -54,6 +57,7 @@ export function PathMap({
             </span>
             <span className="text-[0.95rem] font-extrabold">{step.label}</span>
           </button>
+          {step.state === 'active' && activeSlot}
         </li>
       ))}
     </ol>

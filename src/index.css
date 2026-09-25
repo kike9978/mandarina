@@ -40,6 +40,7 @@
   --animate-pop-in: pop-in 280ms var(--ease-pop) both;
   --animate-path-glow: path-glow 1.4s ease-out infinite;
   --animate-float-soft: float-soft 2.4s ease-in-out infinite;
+  --animate-mic-pulse: mic-pulse 0.9s ease-in-out infinite;
 }
 
 @keyframes pop-in {
@@ -70,6 +71,31 @@
   50% {
     transform: translateY(-4px);
   }
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.wave-bar {
+  animation: wave-bar 0.7s ease-in-out infinite;
+  transform-origin: center bottom;
 }
 
 @layer base {
@@ -180,7 +206,9 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-pop-in,
   .animate-path-glow,
-  .animate-float-soft {
+  .animate-float-soft,
+  .animate-mic-pulse,
+  .wave-bar {
     animation: none !important;
   }
 }

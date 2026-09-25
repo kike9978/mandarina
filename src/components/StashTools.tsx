@@ -17,6 +17,11 @@ import {
   foldNoteTweaks,
   loadNoteTweaks,
 } from '../learning/tutorNotes'
+import {
+  MAX_POSTS_PER_STOP,
+  parseSourceItems,
+  type SourcePackRow,
+} from '../learning/listeningPack'
 import { parsePackOrTsv, type TutorPackRow } from '../learning/tutorPack'
 import { knownSurfacesFor, snapshotTutorBrief } from '../learning/tutorSnapshot'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -234,12 +239,14 @@ export function TutorPackSheet({
 }: {
   onImport: ReturnType<typeof useAppState>['importPhrases']
 }) {
-  const { profile, abilities, stash } = useAppState()
+  const { profile, abilities, stash, listeningSources, addListeningSources } =
+    useAppState()
   const guideName = useGuideName()
   const briefRef = useRef<HTMLTextAreaElement>(null)
   const [brief, setBrief] = useState('')
   const [paste, setPaste] = useState('')
   const [preview, setPreview] = useState<TutorPackRow[] | null>(null)
+  const [previewSources, setPreviewSources] = useState<SourcePackRow[]>([])
   const [previewTips, setPreviewTips] = useState<string[]>([])
   const [savedTips, setSavedTips] = useState<string[]>([])
   const [tipsRev, setTipsRev] = useState(0)
@@ -298,22 +305,56 @@ export function TutorPackSheet({
       paste,
       knownSurfacesFor(profile.languageId, stash),
     )
-    if (parsed.error) {
+    const sources = parseSourceItems(
+      parsed.sourceItems,
+      listeningSources.map((s) => s.title),
+      Math.max(0, MAX_POSTS_PER_STOP - listeningSources.filter((s) => s.abilityId === 'talk-today').length),
+    )
+    if (parsed.error && sources.rows.length === 0) {
       setPreview(null)
+      setPreviewSources([])
       setPreviewTips([])
       setMessage(parsed.error)
       return
     }
     setPreview(parsed.rows)
+    setPreviewSources(sources.rows)
     setPreviewTips(parsed.noteTweaks)
     setSkipped(parsed.skippedDuplicate)
     setMessage(null)
   }
 
   async function acceptPreview() {
-    if (!preview?.length && previewTips.length === 0) return
+    if (!preview?.length && previewTips.length === 0 && previewSources.length === 0)
+      return
+    const created =
+      previewSources.length > 0
+        ? await addListeningSources(
+            previewSources.map((r) => ({
+              abilityId: 'talk-today',
+              title: r.title,
+              creator: r.creator,
+              medium: r.medium,
+              search: r.search,
+              url: r.url,
+              why: r.why,
+              listenFor: r.listenFor,
+              transcript: r.transcript,
+            })),
+          )
+        : []
+    const byTitle = new Map(created.map((s) => [s.title.toLowerCase(), s.id]))
     if (preview?.length) {
-      onImport(rowsToImport(preview), { format: 'paste', name: 'Tutor pack' })
+      onImport(
+        rowsToImport(preview).map((row, i) => ({
+          ...row,
+          sourceId:
+            (preview[i]?.sourceTitle &&
+              byTitle.get(preview[i].sourceTitle!.toLowerCase())) ||
+            created[0]?.id,
+        })),
+        { format: 'paste', name: 'Tutor pack' },
+      )
     }
     if (previewTips.length) {
       await foldNoteTweaks(profile.languageId, previewTips)
@@ -323,12 +364,16 @@ export function TutorPackSheet({
       preview?.length
         ? `${preview.length} phrase${preview.length === 1 ? '' : 's'} ready when you are`
         : null,
+      created.length
+        ? `${created.length} listen${created.length === 1 ? '' : 's'} on your Journey`
+        : null,
       previewTips.length
         ? `${previewTips.length} tip${previewTips.length === 1 ? '' : 's'} folded into the next note`
         : null,
     ].filter(Boolean)
     setMessage(`Pack aboard — ${bits.join(' · ')}.`)
     setPreview(null)
+    setPreviewSources([])
     setPreviewTips([])
     setPaste('')
     setSkipped(0)
@@ -344,9 +389,10 @@ export function TutorPackSheet({
         <h2 className="text-xl">Grow the journey</h2>
       </div>
       <GuideBubble name={guideName}>
-        I&apos;ll write a note about where you are. Paste it to a tutor, then
-        bring their pack back. They can tuck in a few tips so the next note is
-        sharper. I won&apos;t talk to them myself.
+        I&apos;ll write a note about where you are. Paste it to a tutor — ask
+        for phrases <em>and</em> one listen with a real link. If they already
+        have the spoken words, those ride in too. Bring the pack back and
+        I&apos;ll put the video on your Journey so you can play it here.
       </GuideBubble>
 
       <label className="grid gap-1.5 text-[0.85rem] font-extrabold">
@@ -398,6 +444,7 @@ export function TutorPackSheet({
           onChange={(e) => {
             setPaste(e.target.value)
             setPreview(null)
+            setPreviewSources([])
             setPreviewTips([])
             setMessage(null)
           }}
@@ -411,6 +458,7 @@ export function TutorPackSheet({
         onClick={() => {
           setPaste(SAMPLE_TUTOR_PACK_JSON)
           setPreview(null)
+          setPreviewSources([])
           setPreviewTips([])
           setMessage(null)
         }}
@@ -426,14 +474,30 @@ export function TutorPackSheet({
         Bring the pack back
       </button>
 
-      {(preview || previewTips.length > 0) && (
+      {(preview || previewTips.length > 0 || previewSources.length > 0) && (
         <div className="grid gap-3 rounded-xl border-2 border-ink bg-[#e8fff4] p-3">
           <p className="font-extrabold">
             {preview && preview.length > 0
               ? `Pack aboard — ${preview.length} phrases`
-              : 'Tips for the next note'}
+              : previewSources.length > 0
+                ? 'Listen ready for your Journey'
+                : 'Tips for the next note'}
             {skipped > 0 ? ` · ${skipped} already aboard` : ''}
           </p>
+          {previewSources.length > 0 && (
+            <ul className="m-0 grid list-none gap-2 p-0">
+              {previewSources.map((row) => (
+                <li key={row.title} className="font-bold">
+                  <strong>{row.title}</strong>
+                  <span> · {row.creator}</span>
+                  <p className="text-sm text-ink-soft break-all">{row.url}</p>
+                  {row.transcript && (
+                    <p className="text-sm text-ink-soft">Words aboard</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
           {preview && preview.length > 0 && (
             <ul className="m-0 grid list-none gap-2 p-0">
               {preview.map((row) => (
@@ -467,6 +531,7 @@ export function TutorPackSheet({
             onPrimary={acceptPreview}
             onSecondary={() => {
               setPreview(null)
+              setPreviewSources([])
               setPreviewTips([])
               setPaste('')
               setSkipped(0)

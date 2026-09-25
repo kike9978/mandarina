@@ -1,4 +1,4 @@
-import { BookmarkPlus, Pencil, RotateCcw } from 'lucide-react'
+import { BookmarkPlus, MessageCircle, Pencil, RotateCcw } from 'lucide-react'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasPhraseUnit } from '../data/fixtures'
@@ -13,9 +13,12 @@ export function PracticePage() {
     startSession,
     startScriptSession,
     startStashSession,
+    startBossSession,
+    bossReady,
     profile,
     needsScriptFirst,
     dueCount,
+    writingDueCount,
     lastActiveAt,
     stash,
     sessionStarted,
@@ -39,18 +42,25 @@ export function PracticePage() {
     () =>
       decideDailyPlan({
         needsScriptFirst: needsScriptFirst && !scriptDone,
+        scriptOptional: isLatin,
         phraseReady,
         dueCount,
         stashCount: stash.length,
         lastActiveAt,
+        writingDue: writingDueCount,
+        bossReady,
+        writingNoun: isLatin ? 'spellings' : 'characters',
       }),
     [
       needsScriptFirst,
       scriptDone,
+      isLatin,
       phraseReady,
       dueCount,
+      writingDueCount,
       stash.length,
       lastActiveAt,
+      bossReady,
     ],
   )
 
@@ -98,6 +108,12 @@ export function PracticePage() {
             {plan.softComeback ?? `Let’s bring a few things back · ${Math.min(dueCount, 3)}`}
           </p>
         )}
+        {plan.softWriting && (
+          <p className="flex items-center gap-2 text-sm font-bold text-ink-soft">
+            <Pencil size={16} strokeWidth={2.25} aria-hidden />
+            {plan.softWriting}
+          </p>
+        )}
 
         <button
           type="button"
@@ -115,6 +131,25 @@ export function PracticePage() {
             </span>
           </span>
         </button>
+
+        {bossReady && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-[22px] border-[3px] border-ink bg-paper px-4 py-4 text-left shadow-chunky"
+            onClick={() => {
+              startBossSession()
+              navigate('/session')
+            }}
+          >
+            <MessageCircle className="size-6 shrink-0" strokeWidth={2.25} aria-hidden />
+            <span className="grid gap-0.5">
+              <strong className="text-lg">1 conversation milestone</strong>
+              <span className="text-sm font-bold text-ink-soft">
+                Use what you already have in a tiny scene
+              </span>
+            </span>
+          </button>
+        )}
 
         {stash.length > 0 && (
           <button

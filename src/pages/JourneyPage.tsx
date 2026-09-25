@@ -3,6 +3,7 @@ import { getPhraseUnit } from '../data/fixtures'
 import { languageById, orthographyLabel } from '../data/languages'
 import { useAppState, useGuideName } from '../state/AppState'
 import { GuideBubble, PrimaryCta } from '../components/ui'
+import { ListeningPost } from '../components/ListeningPost'
 import { PathMap } from '../components/PathMap'
 
 export function JourneyPage() {
@@ -57,6 +58,15 @@ export function JourneyPage() {
           )}
         </GuideBubble>
 
+        {!unit && (
+          <div className="atmosphere-grid min-w-0 max-w-full rounded-[22px] border-[3px] border-ink p-3 shadow-chunky">
+            <p className="mb-2 px-1 text-sm font-extrabold tracking-wide uppercase">
+              Hear this in the wild
+            </p>
+            <ListeningPost />
+          </div>
+        )}
+
         {unit && (
           <div className="atmosphere-grid min-w-0 max-w-full rounded-[22px] border-[3px] border-ink p-3 shadow-chunky">
             <p className="mb-2 px-1 text-sm font-extrabold tracking-wide uppercase">
@@ -70,6 +80,7 @@ export function JourneyPage() {
                   ? () => navigate('/session')
                   : undefined
               }
+              activeSlot={<ListeningPost />}
             />
             {seedUnit && (
               <PrimaryCta

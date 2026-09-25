@@ -1,5 +1,6 @@
 import {
   BookmarkPlus,
+  Headphones,
   MessageCircle,
   Pencil,
   RotateCcw,
@@ -24,9 +25,14 @@ export function HomePage() {
     profile,
     needsScriptFirst,
     dueCount,
+    writingDueCount,
     lastActiveAt,
     stash,
     activeUnit,
+    listeningSources,
+    startBossSession,
+    bossReady,
+    currentActivity,
   } = useAppState()
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
@@ -42,23 +48,33 @@ export function HomePage() {
   const ortho = orthographyLabel(lang)
   const canResume =
     sessionStarted && !!activeUnit && !sessionCleared
+  const listenWaiting = listeningSources.some(
+    (s) => s.status === 'suggested' || s.status === 'listening',
+  )
 
   const plan = useMemo(
     () =>
       decideDailyPlan({
         needsScriptFirst: needsScriptFirst && !scriptDone,
+        scriptOptional: isLatin,
         phraseReady,
         dueCount,
         stashCount: stash.length,
         lastActiveAt,
+        writingDue: writingDueCount,
+        bossReady,
+        writingNoun: isLatin ? 'spellings' : 'characters',
       }),
     [
       needsScriptFirst,
       scriptDone,
+      isLatin,
       phraseReady,
       dueCount,
+      writingDueCount,
       stash.length,
       lastActiveAt,
+      bossReady,
     ],
   )
 
@@ -121,12 +137,26 @@ export function HomePage() {
               {canResume
                 ? 'No restart needed — your path is waiting.'
                 : plan.kind === 'welcome_back'
-                  ? 'Missed you — we’ll keep it gentle today.'
+                  ? plan.offerBoss
+                    ? 'Missed you — a gentle path, or jump into a tiny scene.'
+                    : 'Missed you — we’ll keep it gentle today.'
                   : `You're learning to say what you're doing today in ${lang.name}. Ready when you are!`}
             </GuideBubble>
             <PrimaryCta onClick={launchPlan}>
               {canResume ? 'Resume' : plan.ctaLabel}
             </PrimaryCta>
+            {!canResume && plan.offerBoss && plan.kind === 'welcome_back' && (
+              <button
+                type="button"
+                className="min-h-12 rounded-2xl border-[2.5px] border-ink bg-grid px-4 py-3 font-extrabold shadow-chunky"
+                onClick={() => {
+                  startBossSession()
+                  navigate('/session')
+                }}
+              >
+                Or a tiny scene
+              </button>
+            )}
           </section>
         )}
 
@@ -146,8 +176,14 @@ export function HomePage() {
                 ? `Do the ${ortho.toLowerCase()} warm-up below — then we bridge into real phrases.`
                 : 'Phrase content for this language is next; keep skills warm meanwhile.'}
             </GuideBubble>
-            {(plan.kind === 'script' || plan.kind === 'stash') && (
-              <PrimaryCta onClick={launchPlan}>{plan.ctaLabel}</PrimaryCta>
+            {listenWaiting && !hasPhraseUnit(profile.languageId) ? (
+              <PrimaryCta onClick={() => navigate('/journey#listen')}>
+                A listen is ready
+              </PrimaryCta>
+            ) : (
+              (plan.kind === 'script' || plan.kind === 'stash') && (
+                <PrimaryCta onClick={launchPlan}>{plan.ctaLabel}</PrimaryCta>
+              )
             )}
           </section>
         )}
@@ -198,6 +234,21 @@ export function HomePage() {
               </span>
             </button>
           </li>
+          {plan.softWriting && (
+            <li>
+              <button
+                type="button"
+                className="flex w-full min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 text-left font-bold"
+                onClick={() => {
+                  startScriptSession()
+                  navigate('/script')
+                }}
+              >
+                <Pencil size={18} strokeWidth={2.25} aria-hidden />
+                <span>{plan.softWriting}</span>
+              </button>
+            </li>
+          )}
           <li>
             <button
               type="button"
@@ -221,10 +272,37 @@ export function HomePage() {
               </span>
             </button>
           </li>
-          <li className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold">
-            <MessageCircle size={18} strokeWidth={2.25} aria-hidden />
-            <span>{HOME_SOFT.milestone}</span>
+          <li>
+            <button
+              type="button"
+              className="flex w-full min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 text-left font-bold disabled:opacity-55"
+              disabled={!bossReady}
+              onClick={() => {
+                if (canResume && currentActivity === 'boss') {
+                  navigate('/session')
+                  return
+                }
+                startBossSession()
+                navigate('/session')
+              }}
+            >
+              <MessageCircle size={18} strokeWidth={2.25} aria-hidden />
+              <span>
+                {bossReady ? HOME_SOFT.milestone : HOME_SOFT.milestoneSoon}
+              </span>
+            </button>
           </li>
+          {listenWaiting && (
+            <li>
+              <Link
+                to="/journey#listen"
+                className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
+              >
+                <Headphones size={18} strokeWidth={2.25} aria-hidden />
+                <span>A listen is ready</span>
+              </Link>
+            </li>
+          )}
           <li>
             <Link
               to="/stash"

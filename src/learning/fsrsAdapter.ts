@@ -88,6 +88,31 @@ export async function countDueFacets(
   return dues.length
 }
 
+/** Writing facets that have been practiced and are due again. */
+export async function countDueWritingFacets(
+  languageId: string,
+  now = new Date(),
+): Promise<number> {
+  const cards = await db.fsrsCards
+    .where('due')
+    .belowOrEqual(now.toISOString())
+    .toArray()
+  if (!cards.length) return 0
+  const items = await db.items.where('languageId').equals(languageId).toArray()
+  const ids = new Set(items.map((i) => i.id))
+  let n = 0
+  for (const c of cards) {
+    if (c.facet !== 'writing' || !ids.has(c.itemId)) continue
+    try {
+      const card = parseCard(c.fsrsState)
+      if ((card.reps ?? 0) > 0) n += 1
+    } catch {
+      /* skip broken card */
+    }
+  }
+  return n
+}
+
 export interface DueFacetRow {
   itemId: string
   facet: Facet

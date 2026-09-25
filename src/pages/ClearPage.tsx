@@ -6,7 +6,7 @@ export function ClearPage() {
   const navigate = useNavigate()
   const { resetSession, profile, activeUnit, sessionKind } = useAppState()
   const today = new Date().toLocaleDateString()
-  const isStash = sessionKind === 'stash'
+  const isStash = sessionKind === 'stash' || sessionKind === 'listen'
 
   return (
     <div className="atmosphere-mint flex min-h-full flex-1 flex-col">
@@ -19,9 +19,11 @@ export function ClearPage() {
           {today} · Traveler: {profile.displayName}
         </p>
         <p className="animate-pop-in leading-snug font-bold">
-          {isStash
-            ? 'Your stashed phrases got a real practice pass — not a flashcard dump.'
-            : 'You moved from meeting the sentence to saying it yourself. Nice work.'}
+          {sessionKind === 'listen'
+            ? 'Those wild lines got a real practice pass — the post is lit now.'
+            : isStash
+              ? 'Your stashed phrases got a real practice pass — not a flashcard dump.'
+              : 'You moved from meeting the sentence to saying it yourself. Nice work.'}
         </p>
         <PrimaryCta
           onClick={() => {

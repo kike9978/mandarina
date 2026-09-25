@@ -25,6 +25,9 @@ export interface ScriptGlyph {
   glyph: string
   reading: string
   hint: string
+  /** Tiny word the mark shows up in — Use It in the wild. */
+  usePhrase?: string
+  useGloss?: string
 }
 
 export const LANGUAGES: LanguageOption[] = [
@@ -153,14 +156,14 @@ export const GOALS: { id: GoalId; title: string }[] = [
 /** Seed glyphs / sound bits for Phase 1 orthography practice. */
 export const SCRIPT_GLYPHS: Record<LanguageId, ScriptGlyph[]> = {
   ja: [
-    { id: 'a', glyph: 'あ', reading: 'a', hint: 'Open mouth “ah”' },
+    { id: 'a', glyph: 'あ', reading: 'a', hint: 'Open mouth “ah”', usePhrase: 'あさ', useGloss: 'morning' },
     { id: 'i', glyph: 'い', reading: 'i', hint: 'Like “ee”' },
     { id: 'u', glyph: 'う', reading: 'u', hint: 'Like “oo”' },
     { id: 'e', glyph: 'え', reading: 'e', hint: 'Like “eh”' },
     { id: 'o', glyph: 'お', reading: 'o', hint: 'Like “oh”' },
   ],
   zh: [
-    { id: 'ren', glyph: '人', reading: 'rén', hint: 'person' },
+    { id: 'ren', glyph: '人', reading: 'rén', hint: 'person', usePhrase: '人', useGloss: 'person' },
     { id: 'kou', glyph: '口', reading: 'kǒu', hint: 'mouth' },
     { id: 'ri', glyph: '日', reading: 'rì', hint: 'sun / day' },
     { id: 'yue', glyph: '月', reading: 'yuè', hint: 'moon / month' },
@@ -171,24 +174,24 @@ export const SCRIPT_GLYPHS: Record<LanguageId, ScriptGlyph[]> = {
     { id: 'n', glyph: 'ㄴ', reading: 'n', hint: 'consonant' },
     { id: 'a', glyph: 'ㅏ', reading: 'a', hint: 'vowel' },
     { id: 'i', glyph: 'ㅣ', reading: 'i', hint: 'vowel' },
-    { id: 'ga', glyph: '가', reading: 'ga', hint: 'ㄱ + ㅏ block' },
+    { id: 'ga', glyph: '가', reading: 'ga', hint: 'ㄱ + ㅏ block', usePhrase: '가요', useGloss: 'go / I’m going' },
   ],
   ar: [
     { id: 'alif', glyph: 'ا', reading: 'alif', hint: 'long aa' },
-    { id: 'ba', glyph: 'ب', reading: 'bāʼ', hint: 'b sound' },
+    { id: 'ba', glyph: 'ب', reading: 'bāʼ', hint: 'b sound', usePhrase: 'باب', useGloss: 'door' },
     { id: 'ta', glyph: 'ت', reading: 'tāʼ', hint: 't sound' },
     { id: 'jim', glyph: 'ج', reading: 'jīm', hint: 'j sound' },
     { id: 'dal', glyph: 'د', reading: 'dāl', hint: 'd sound' },
   ],
   id: [
-    { id: 'ng', glyph: 'ng', reading: 'ng', hint: 'as in “dengan” — one sound' },
+    { id: 'ng', glyph: 'ng', reading: 'ng', hint: 'as in “dengan” — one sound', usePhrase: 'dengan', useGloss: 'with' },
     { id: 'ny', glyph: 'ny', reading: 'ny', hint: 'as in “nyanyi”' },
     { id: 'sy', glyph: 'sy', reading: 'sy', hint: 'like “sh” in “syukur”' },
     { id: 'kh', glyph: 'kh', reading: 'kh', hint: 'soft kh, as in “khas”' },
     { id: 'c', glyph: 'c', reading: 'ch', hint: 'always “ch” — “cari”' },
   ],
   es: [
-    { id: 'n', glyph: 'ñ', reading: 'nye', hint: 'como “baño”' },
+    { id: 'n', glyph: 'ñ', reading: 'nye', hint: 'como “baño”', usePhrase: 'baño', useGloss: 'bathroom' },
     { id: 'a-ac', glyph: 'á', reading: 'á', hint: 'stressed a' },
     { id: 'e-ac', glyph: 'é', reading: 'é', hint: 'stressed e' },
     { id: 'i-ac', glyph: 'í', reading: 'í', hint: 'stressed i' },

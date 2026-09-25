@@ -6,9 +6,14 @@ import {
   type LanguageId,
 } from '../data/languages'
 import { db } from '../db/mandarinaDb'
-import type { Ability, StashedPhrase } from '../data/fixtures'
+import type { Ability, ListeningSource, StashedPhrase } from '../data/fixtures'
 import { loadNoteTweaks } from './tutorNotes'
-import { buildTutorBrief } from './tutorPack'
+import {
+  buildFindListenBrief,
+  buildProcessWordsBrief,
+  buildPullLinesBrief,
+} from './listeningPack'
+import { buildTutorBrief, type TutorBriefInput } from './tutorPack'
 
 export function knownSurfacesFor(
   languageId: LanguageId,
@@ -21,13 +26,13 @@ export function knownSurfacesFor(
   ]
 }
 
-export async function snapshotTutorBrief(input: {
+export async function collectLearnerContext(input: {
   languageId: LanguageId
   scriptFamiliarity: 'new' | 'some' | 'comfortable'
   goalId: string
   abilities: Ability[]
   stash: StashedPhrase[]
-}): Promise<string> {
+}): Promise<TutorBriefInput & { stopTitle: string }> {
   const lang = languageById(input.languageId)
   const goal = GOALS.find((g) => g.id === input.goalId)?.title ?? 'Talk about daily life'
   const unit = getPhraseUnit(input.languageId)
@@ -82,7 +87,7 @@ export async function snapshotTutorBrief(input: {
     if (weak.length >= 6) break
   }
 
-  return buildTutorBrief({
+  return {
     languageName: lang.name,
     writingSystem: lang.writingSystem,
     scriptFamiliarity: familiarity,
@@ -94,5 +99,79 @@ export async function snapshotTutorBrief(input: {
     known,
     weakSpots: weak,
     coachTips: await loadNoteTweaks(input.languageId),
+    stopTitle: unit?.title ?? 'Talk about today',
+  }
+}
+
+export async function snapshotTutorBrief(input: {
+  languageId: LanguageId
+  scriptFamiliarity: 'new' | 'some' | 'comfortable'
+  goalId: string
+  abilities: Ability[]
+  stash: StashedPhrase[]
+}): Promise<string> {
+  const ctx = await collectLearnerContext(input)
+  return buildTutorBrief(ctx)
+}
+
+export async function snapshotFindListenBrief(input: {
+  languageId: LanguageId
+  scriptFamiliarity: 'new' | 'some' | 'comfortable'
+  goalId: string
+  abilities: Ability[]
+  stash: StashedPhrase[]
+  sources: ListeningSource[]
+}): Promise<string> {
+  const ctx = await collectLearnerContext(input)
+  return buildFindListenBrief({
+    ...ctx,
+    sourcesAboard: input.sources.map((s) => s.title),
+  })
+}
+
+export async function snapshotPullLinesBrief(input: {
+  languageId: LanguageId
+  scriptFamiliarity: 'new' | 'some' | 'comfortable'
+  goalId: string
+  abilities: Ability[]
+  stash: StashedPhrase[]
+  source: ListeningSource
+}): Promise<string> {
+  const ctx = await collectLearnerContext(input)
+  return buildPullLinesBrief({
+    ...ctx,
+    sourceTitle: input.source.title,
+    sourceCreator: input.source.creator,
+    sourceSearch: input.source.search,
+    sourceUrl: input.source.url,
+    transcript: input.source.transcript,
+  })
+}
+
+export async function snapshotProcessWordsBrief(input: {
+  languageId: LanguageId
+  scriptFamiliarity: 'new' | 'some' | 'comfortable'
+  goalId: string
+  abilities: Ability[]
+  stash: StashedPhrase[]
+  source: ListeningSource
+}): Promise<string> {
+  const ctx = await collectLearnerContext(input)
+  const words = input.source.transcript?.trim()
+  if (!words) {
+    return buildPullLinesBrief({
+      ...ctx,
+      sourceTitle: input.source.title,
+      sourceCreator: input.source.creator,
+      sourceSearch: input.source.search,
+      sourceUrl: input.source.url,
+    })
+  }
+  return buildProcessWordsBrief({
+    ...ctx,
+    sourceTitle: input.source.title,
+    sourceCreator: input.source.creator,
+    sourceUrl: input.source.url,
+    transcript: words,
   })
 }

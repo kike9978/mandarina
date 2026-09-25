@@ -92,6 +92,26 @@ export interface StashedPhrase {
   exampleSentence?: string
   abilityTag?: string
   source: 'user' | 'import' | 'lookup'
+  sourceId?: string
+}
+
+export type ListeningMedium = 'video' | 'podcast'
+export type ListeningStatus = 'suggested' | 'listening' | 'practiced'
+
+export interface ListeningSource {
+  id: string
+  languageId: LanguageId
+  abilityId: string
+  title: string
+  creator: string
+  medium: ListeningMedium
+  search: string
+  url?: string
+  why: string
+  listenFor?: string[]
+  transcript?: string
+  status: ListeningStatus
+  createdAt: string
 }
 
 export interface DictEntry {
@@ -293,7 +313,9 @@ export const HOME_SOFT = {
   comeback: 'A few things to bring back',
   script: 'Sounds & spelling practice',
   scriptNew: 'Writing system practice',
+  writing: 'A few marks to practice',
   milestone: '1 conversation milestone',
+  milestoneSoon: 'Conversation after a phrase path',
 }
 
 export const DICTIONARY_SUBSET: DictEntry[] = [
@@ -312,12 +334,51 @@ export const SAMPLE_PACK_JSON = `[
 
 export const SAMPLE_TUTOR_PACK_JSON = `{
   "phrases": [
-    {"surface":"Saya lapar.","gloss":"I am hungry.","exampleSentence":"Hari ini saya lapar.","abilityTag":"Talk about today"},
-    {"surface":"Mau makan apa?","gloss":"What do you want to eat?","exampleSentence":"Mau makan apa hari ini?"},
+    {"surface":"Saya lapar.","gloss":"I am hungry.","exampleSentence":"Hari ini saya lapar.","abilityTag":"Talk about today","sourceTitle":"Easy Indonesian 1 — Old Jakarta"},
+    {"surface":"Mau makan apa?","gloss":"What do you want to eat?","exampleSentence":"Mau makan apa hari ini?","sourceTitle":"Easy Indonesian 1 — Old Jakarta"},
     {"surface":"Saya ada waktu.","gloss":"I have time.","exampleSentence":"Hari ini saya ada waktu."}
+  ],
+  "sources": [
+    {
+      "title": "Easy Indonesian 1 — Old Jakarta",
+      "creator": "Easy Languages",
+      "medium": "video",
+      "url": "https://www.youtube.com/watch?v=8lDeyfxKrRk",
+      "why": "Street Indonesian — you'll hear everyday chat, not textbook lines.",
+      "listenFor": ["Jakarta", "suka"],
+      "transcript": "Jakarta itu panas sekali hari ini.\\nSaya suka jalan di sini.\\nMau makan apa?\\nAda warung di dekat sini."
+    }
   ],
   "noteTweaks": [
     "Stay in daily-life neighbors of hunger, time, and work — one new move each pack.",
     "Keep every example under ten words and reuse a word they already have."
+  ]
+}`
+
+export const SAMPLE_SOURCES_PACK_JSON = `{
+  "kind": "sources",
+  "items": [
+    {
+      "title": "Easy Indonesian 1 — Old Jakarta",
+      "creator": "Easy Languages",
+      "medium": "video",
+      "url": "https://www.youtube.com/watch?v=8lDeyfxKrRk",
+      "search": "Easy Indonesian Old Jakarta",
+      "why": "You'll hear everyday Indonesian in the street.",
+      "listenFor": ["Jakarta", "suka"],
+      "transcript": "Jakarta itu panas sekali hari ini.\\nSaya suka jalan di sini.\\nMau makan apa?\\nAda warung di dekat sini."
+    }
+  ]
+}`
+
+export const SAMPLE_LISTEN_TRANSCRIPT = `Jakarta itu panas sekali hari ini.
+Saya suka jalan di sini.
+Mau makan apa?
+Ada warung di dekat sini.`
+
+export const SAMPLE_LISTEN_LINES_JSON = `{
+  "phrases": [
+    {"surface":"Mau makan apa?","gloss":"What do you want to eat?","exampleSentence":"Mau makan apa?","sourceTitle":"Easy Indonesian 1 — Old Jakarta"},
+    {"surface":"Saya suka","gloss":"I like","exampleSentence":"Saya suka jalan di sini.","sourceTitle":"Easy Indonesian 1 — Old Jakarta"}
   ]
 }`

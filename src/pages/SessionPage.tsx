@@ -1,4 +1,4 @@
-import { BookmarkPlus, Check, Mic, Volume2 } from 'lucide-react'
+import { BookmarkPlus, Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type PhraseUnit } from '../data/fixtures'
@@ -11,7 +11,9 @@ import {
   PrimaryCta,
 } from '../components/ui'
 import { BossChallenge } from '../components/BossChallenge'
+import { MicListen } from '../components/MicListen'
 import {
+  HearText,
   SentenceFrame,
   SessionChrome,
   SoftFeedback,
@@ -52,13 +54,15 @@ export function SessionPage() {
     addStash,
     activeUnit,
     sessionKind,
+    sessionStarted,
     logAttempt,
+    recordBossClear,
   } = useAppState()
   const unit = activeUnit
 
   useEffect(() => {
-    if (!unit) navigate('/', { replace: true })
-  }, [unit, navigate])
+    if (!unit && !sessionStarted) navigate('/', { replace: true })
+  }, [unit, sessionStarted, navigate])
 
   const stepMeta = steps.find((s) => s.id === currentActivity)
   const stepNumber = stepMeta?.number ?? 1
@@ -120,8 +124,11 @@ export function SessionPage() {
         {currentActivity === 'boss' && (
           <BossChallenge
             unit={unit}
-            isStash={sessionKind === 'stash'}
-            onClear={() => advanceFrom('boss')}
+            isStash={sessionKind === 'stash' || sessionKind === 'listen'}
+            onClear={() => {
+              recordBossClear()
+              advanceFrom('boss')
+            }}
             onSkip={() => advanceFrom('boss')}
             onAttempt={(outcome, used) => {
               const focus = unit.items[0]
@@ -431,6 +438,8 @@ function SpotIt({
 
 function BreakItDown({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
+  const { profile } = useAppState()
+  const langHint = ttsLangFor(profile.languageId)
 
   return (
     <ActivityShell eyebrow="Break It Down">
@@ -441,7 +450,7 @@ function BreakItDown({ onNext }: { onNext: () => void }) {
         {unit.items.map((item) => (
           <li
             key={item.id}
-            className="grid gap-0.5 rounded-2xl border-[2.5px] border-ink bg-paper p-3"
+            className="grid gap-1.5 rounded-2xl border-[2.5px] border-ink bg-paper p-3"
           >
             <strong>{item.surface}</strong>
             {item.reading && (
@@ -450,6 +459,11 @@ function BreakItDown({ onNext }: { onNext: () => void }) {
               </em>
             )}
             <span className="font-bold">{item.gloss}</span>
+            <HearText
+              text={item.surface}
+              langHint={langHint}
+              label={`Hear “${item.surface}”`}
+            />
           </li>
         ))}
       </ul>
@@ -667,7 +681,7 @@ function BuildIt({ onNext }: { onNext: () => void }) {
 
 function SayIt({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
-  const { logAttempt } = useAppState()
+  const { logAttempt, profile } = useAppState()
   const itemKey = useItemKey()
   const focusId = unit.items[0]?.id
 
@@ -691,7 +705,7 @@ function SayIt({ onNext }: { onNext: () => void }) {
   return (
     <ActivityShell eyebrow="Say It">
       <GuideBubble name={useGuideName()}>
-        What are you doing today? Type it (mic is a stub for now).
+        What are you doing today? Speak it — or type if you&apos;d rather.
       </GuideBubble>
       <label>
         <span className="sr-only">Your sentence</span>
@@ -706,10 +720,14 @@ function SayIt({ onNext }: { onNext: () => void }) {
           placeholder={sentencePlaceholder(unit.targetSentence)}
         />
       </label>
-      <button type="button" className={iconRow} disabled>
-        <Mic strokeWidth={2.25} />
-        Mic coming soon — type for now
-      </button>
+      <MicListen
+        target={unit.targetSentence}
+        langHint={ttsLangFor(profile.languageId)}
+        onHeard={(text) => {
+          setValue(text)
+          setFailed(false)
+        }}
+      />
       {failed && !ok && (
         <SoftFeedback
           hint="Rebuild from the chunks you just practiced."

@@ -3,6 +3,7 @@ import {
   composeJourneyOrder,
   decideDailyPlan,
   dueRowsToComebacks,
+  isBossReady,
 } from './orchestrator'
 import { outcomeToRating } from './fsrsAdapter'
 import { Rating } from 'ts-fsrs'
@@ -62,6 +63,36 @@ describe('decideDailyPlan', () => {
     expect(plan.kind).toBe('stash')
     expect(plan.route).toBe('/stash')
   })
+
+  it('keeps phrase Continue when script is optional and phrases are ready', () => {
+    const plan = decideDailyPlan({
+      needsScriptFirst: true,
+      scriptOptional: true,
+      phraseReady: true,
+      dueCount: 2,
+      stashCount: 0,
+    })
+    expect(plan.kind).toBe('comeback')
+    expect(plan.route).toBe('/session')
+  })
+
+  it('offers a light scene on welcome_back when Use is ready', () => {
+    const now = new Date('2026-09-07T12:00:00Z')
+    const plan = decideDailyPlan({
+      needsScriptFirst: false,
+      phraseReady: true,
+      dueCount: 3,
+      stashCount: 0,
+      lastActiveAt: '2026-08-01T12:00:00Z',
+      now,
+      bossReady: true,
+      writingDue: 2,
+      writingNoun: 'spellings',
+    })
+    expect(plan.offerBoss).toBe(true)
+    expect(plan.body).toMatch(/tiny scene/)
+    expect(plan.softWriting).toBe('2 spellings to practice')
+  })
 })
 
 describe('composeJourneyOrder', () => {
@@ -77,6 +108,38 @@ describe('composeJourneyOrder', () => {
   it('weaves comeback after meet for normal comeback days', () => {
     const order = composeJourneyOrder('comeback', true)
     expect(order.indexOf('comeback')).toBe(order.indexOf('meet') + 1)
+  })
+})
+
+describe('isBossReady', () => {
+  it('stays closed when there is no phrase material yet', () => {
+    expect(
+      isBossReady({
+        needsScriptFirst: true,
+        phraseReady: false,
+        talkTodayDone: false,
+        stashWithExample: 0,
+      }),
+    ).toBe(false)
+  })
+
+  it('opens after the phrase ability or stashed lines with examples', () => {
+    expect(
+      isBossReady({
+        needsScriptFirst: false,
+        phraseReady: true,
+        talkTodayDone: true,
+        stashWithExample: 0,
+      }),
+    ).toBe(true)
+    expect(
+      isBossReady({
+        needsScriptFirst: false,
+        phraseReady: false,
+        talkTodayDone: false,
+        stashWithExample: 2,
+      }),
+    ).toBe(true)
   })
 })
 

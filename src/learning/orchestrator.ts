@@ -17,6 +17,10 @@ export interface DailyPlan {
   ctaLabel: string
   /** Soft row copy for Home — never says “due cards”. */
   softComeback?: string
+  /** Soft row when writing facets are due. */
+  softWriting?: string
+  /** Welcome-back / Today may offer a light Boss scene. */
+  offerBoss?: boolean
 }
 
 const ABSENCE_MS = 5 * 24 * 60 * 60 * 1000
@@ -29,73 +33,97 @@ export function decideDailyPlan(input: {
   stashCount: number
   lastActiveAt?: string | null
   now?: Date
+  /** Latin sounds — optional; do not steal the phrase Continue hero. */
+  scriptOptional?: boolean
+  writingDue?: number
+  bossReady?: boolean
+  writingNoun?: string
 }): DailyPlan {
   const now = input.now ?? new Date()
   const absent =
     !!input.lastActiveAt &&
     now.getTime() - new Date(input.lastActiveAt).getTime() > ABSENCE_MS
+  const writingNoun = input.writingNoun ?? 'characters'
+  const writingN = Math.min(input.writingDue ?? 0, 5)
+  const softWriting =
+    writingN > 0
+      ? writingN === 1
+        ? `1 ${writingNoun.replace(/s$/, '')} to practice`
+        : `${writingN} ${writingNoun} to practice`
+      : undefined
 
-  if (input.needsScriptFirst) {
-    return {
+  const withExtras = (plan: DailyPlan): DailyPlan => ({
+    ...plan,
+    softWriting,
+    offerBoss: Boolean(input.bossReady && input.phraseReady),
+  })
+
+  const scriptBlocksPhrases =
+    input.needsScriptFirst && !(input.scriptOptional && input.phraseReady)
+
+  if (scriptBlocksPhrases) {
+    return withExtras({
       kind: 'script',
       route: '/script',
       headline: 'Warm up the writing first',
       body: 'A short path through see → hear → spot → match → practice → use.',
       ctaLabel: 'Start warm-up',
-    }
+    })
   }
 
   if (absent && input.dueCount > 0) {
     const n = Math.min(input.dueCount, COMEBACK_CAP)
-    return {
+    return withExtras({
       kind: 'welcome_back',
       route: '/session',
       headline: 'Welcome back',
-      body: 'We’ll ease in — a few familiar bits, then keep the journey moving.',
+      body: input.bossReady
+        ? 'We’ll ease in — a few familiar bits, or a tiny scene if you want to talk.'
+        : 'We’ll ease in — a few familiar bits, then keep the journey moving.',
       ctaLabel: 'Ease back in',
       softComeback: `Let’s bring a few things back · ${n}`,
-    }
+    })
   }
 
   if (input.dueCount > 0 && input.phraseReady) {
     const n = Math.min(input.dueCount, COMEBACK_CAP)
-    return {
+    return withExtras({
       kind: 'comeback',
       route: '/session',
       headline: 'Continue your lesson',
       body: 'We’ll weave a couple of comebacks into today’s path.',
       ctaLabel: 'Start',
       softComeback: `Let’s bring a few things back · ${n}`,
-    }
+    })
   }
 
   if (!input.phraseReady && input.stashCount > 0) {
-    return {
+    return withExtras({
       kind: 'stash',
       route: '/stash',
       headline: 'Your phrases are waiting',
       body: `You stashed ${input.stashCount} — lock a few in when you’re ready.`,
       ctaLabel: 'Open stash',
-    }
+    })
   }
 
   if (input.phraseReady) {
-    return {
+    return withExtras({
       kind: 'journey',
       route: '/session',
       headline: 'Continue your lesson',
       body: 'Pick up where the path left off.',
       ctaLabel: 'Start',
-    }
+    })
   }
 
-  return {
+  return withExtras({
     kind: 'script',
     route: '/script',
     headline: 'Keep skills warm',
     body: 'Phrase units for this language are expanding — sounds practice is ready now.',
     ctaLabel: 'Practice sounds',
-  }
+  })
 }
 
 const CORE_ORDER: ActivityId[] = [
@@ -141,6 +169,18 @@ export function dueRowsToComebacks(
     reading: r.reading,
     facet: r.facet,
   }))
+}
+
+/** Use-stage (Boss Challenge) — not a chat tab. */
+export function isBossReady(input: {
+  needsScriptFirst: boolean
+  phraseReady: boolean
+  talkTodayDone: boolean
+  stashWithExample: number
+}): boolean {
+  if (input.stashWithExample > 0) return true
+  if (input.needsScriptFirst) return false
+  return input.talkTodayDone && input.phraseReady
 }
 
 export function attachComebacks(
