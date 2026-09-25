@@ -1,17 +1,35 @@
-import { getPhraseUnit, SCRIPT_SESSION_STEPS } from '../data/fixtures'
+import { useNavigate } from 'react-router-dom'
+import { getPhraseUnit } from '../data/fixtures'
 import { languageById, orthographyLabel } from '../data/languages'
 import { useAppState, useGuideName } from '../state/AppState'
-import { GuideBubble } from '../components/ui'
+import { GuideBubble, PrimaryCta } from '../components/ui'
 import { PathMap } from '../components/PathMap'
 
 export function JourneyPage() {
-  const { steps, scriptSteps, profile, needsScriptFirst } = useAppState()
+  const navigate = useNavigate()
+  const {
+    steps,
+    scriptSteps,
+    profile,
+    needsScriptFirst,
+    activeUnit,
+    sessionStarted,
+    sessionCleared,
+    scriptSessionStarted,
+    startSession,
+    startScriptSession,
+    abilities,
+  } = useAppState()
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
-  const unit = getPhraseUnit(profile.languageId)
-  const scriptPath = needsScriptFirst ? scriptSteps : SCRIPT_SESSION_STEPS
+  const seedUnit = getPhraseUnit(profile.languageId)
+  const unit = activeUnit ?? seedUnit
   const isLatin = lang.orthographyMode === 'latin-sounds'
   const ortho = orthographyLabel(lang)
+  const canResume = sessionStarted && !!activeUnit && !sessionCleared
+  const talkDone = abilities.find((a) => a.id === 'talk-today')?.status === 'done'
+  const scriptDone =
+    abilities.find((a) => a.id === 'script-basics')?.status === 'done'
 
   return (
     <div className="atmosphere-split flex min-h-full w-full min-w-0 max-w-full flex-1 flex-col">
@@ -43,8 +61,30 @@ export function JourneyPage() {
           <div className="atmosphere-grid min-w-0 max-w-full rounded-[22px] border-[3px] border-ink p-3 shadow-chunky">
             <p className="mb-2 px-1 text-sm font-extrabold tracking-wide uppercase">
               Current focus: {unit.title}
+              {talkDone ? ' · checkpoint cleared' : ''}
             </p>
-            <PathMap steps={steps} />
+            <PathMap
+              steps={steps}
+              onSelect={
+                canResume
+                  ? () => navigate('/session')
+                  : undefined
+              }
+            />
+            {seedUnit && (
+              <PrimaryCta
+                onClick={() => {
+                  if (canResume) {
+                    navigate('/session')
+                    return
+                  }
+                  startSession()
+                  navigate('/session')
+                }}
+              >
+                {canResume ? 'Resume this path' : 'Walk this path'}
+              </PrimaryCta>
+            )}
           </div>
         )}
 
@@ -52,8 +92,28 @@ export function JourneyPage() {
           <p className="mb-2 px-1 text-sm font-extrabold tracking-wide uppercase">
             {lang.scriptTrackTitle}
             {isLatin ? ' (optional)' : ''}
+            {scriptDone ? ' · warm-up done' : ''}
           </p>
-          <PathMap steps={scriptPath} />
+          <PathMap
+            steps={scriptSteps}
+            onSelect={
+              scriptSessionStarted
+                ? () => navigate('/script')
+                : undefined
+            }
+          />
+          {(needsScriptFirst || isLatin) && !scriptDone && (
+            <button
+              type="button"
+              className="mt-2 min-h-12 w-full rounded-2xl border-[3px] border-ink bg-grid px-4 font-extrabold shadow-chunky"
+              onClick={() => {
+                startScriptSession()
+                navigate('/script')
+              }}
+            >
+              {isLatin ? 'Warm up sounds' : 'Practice the writing system'}
+            </button>
+          )}
         </div>
       </div>
     </div>

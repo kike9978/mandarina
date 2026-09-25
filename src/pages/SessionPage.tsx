@@ -2,14 +2,15 @@ import { BookmarkPlus, Check, Mic, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type PhraseUnit } from '../data/fixtures'
+import { samePhrase, sentencePlaceholder } from '../learning/templateBridge'
 import { speakText, ttsLangFor } from '../learning/tts'
 import { useAppState, useGuideName } from '../state/AppState'
 import {
   GuideBubble,
   MomentumBanner,
   PrimaryCta,
-  SoftChoice,
 } from '../components/ui'
+import { BossChallenge } from '../components/BossChallenge'
 import {
   SentenceFrame,
   SessionChrome,
@@ -51,6 +52,7 @@ export function SessionPage() {
     addStash,
     activeUnit,
     sessionKind,
+    logAttempt,
   } = useAppState()
   const unit = activeUnit
 
@@ -116,9 +118,22 @@ export function SessionPage() {
           <SayIt onNext={() => advanceFrom('say')} />
         )}
         {currentActivity === 'boss' && (
-          <BossShell
-            onNext={() => advanceFrom('boss')}
+          <BossChallenge
+            unit={unit}
+            isStash={sessionKind === 'stash'}
+            onClear={() => advanceFrom('boss')}
             onSkip={() => advanceFrom('boss')}
+            onAttempt={(outcome, used) => {
+              const focus = unit.items[0]
+              if (!focus) return
+              const prefix = sessionKind === 'stash' ? 'user' : 'phrase'
+              logAttempt({
+                activityType: 'boss',
+                itemKey: `${prefix}:${focus.id}`,
+                facet: 'contextualUse',
+                outcome: used || outcome === 'success' ? 'success' : outcome,
+              })
+            }}
           />
         )}
       </div>
@@ -533,8 +548,11 @@ function BuildIt({ onNext }: { onNext: () => void }) {
   const [built, setBuilt] = useState<string[]>([])
   const [failed, setFailed] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
-  const done = built.join('') === unit.buildChunks.join('') ||
-    built.join(' ') === unit.buildChunks.join(' ')
+  const assembled = built.join(' ')
+  const done =
+    samePhrase(assembled, unit.targetSentence) ||
+    samePhrase(built.join(''), unit.buildChunks.join(''))
+  const allPlaced = built.length === unit.buildChunks.length
 
   const log = (outcome: 'success' | 'fail' | 'hint' | 'reveal') => {
     const key = itemKey(focusId)
@@ -548,22 +566,31 @@ function BuildIt({ onNext }: { onNext: () => void }) {
     })
   }
 
+  const moveToBuilt = (chunk: string) => {
+    setPool((prev) => prev.filter((x) => x !== chunk))
+    setBuilt((prev) => [...prev, chunk])
+    setFailed(false)
+  }
+
   return (
     <ActivityShell eyebrow="Build It">
       <GuideBubble name={useGuideName()}>
-        Rebuild the sentence from the chunks.
+        Tap the pieces below — rebuild:{' '}
+        <strong>{unit.targetGloss}</strong>
       </GuideBubble>
-      <div className="flex min-h-[72px] flex-wrap items-center gap-2 rounded-2xl border-[3px] border-dashed border-ink bg-paper/70 p-3">
+      <div className="flex min-h-18 flex-wrap items-center gap-2 rounded-2xl border-[3px] border-dashed border-ink bg-paper/70 p-3">
         {built.length === 0 ? (
-          <span className="font-bold text-ink-soft">Drop chunks here</span>
+          <span className="font-bold text-ink-soft">
+            Tap a piece to drop it here
+          </span>
         ) : (
-          built.map((c) => (
+          built.map((c, i) => (
             <button
-              key={`b-${c}`}
+              key={`b-${c}-${i}`}
               type="button"
-              className={spotChip}
+              className={`${spotChip} bg-cyan`}
               onClick={() => {
-                setBuilt((prev) => prev.filter((x) => x !== c))
+                setBuilt((prev) => prev.filter((_, idx) => idx !== i))
                 setPool((prev) => [...prev, c])
                 setFailed(false)
               }}
@@ -573,22 +600,21 @@ function BuildIt({ onNext }: { onNext: () => void }) {
           ))
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {pool.map((c) => (
-          <button
-            key={`p-${c}`}
-            type="button"
-            className={spotChip}
-            onClick={() => {
-              setPool((prev) => prev.filter((x) => x !== c))
-              setBuilt((prev) => [...prev, c])
-            }}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-      {built.length === unit.buildChunks.length && !done && (
+      {pool.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {pool.map((c, i) => (
+            <button
+              key={`p-${c}-${i}`}
+              type="button"
+              className={spotChip}
+              onClick={() => moveToBuilt(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+      {allPlaced && !done && !failed && (
         <button
           type="button"
           className="inline-flex w-fit cursor-pointer items-center rounded-full border-[2.5px] border-ink bg-cyan px-3 py-2 font-extrabold"
@@ -619,15 +645,22 @@ function BuildIt({ onNext }: { onNext: () => void }) {
           }}
         />
       )}
-      <PrimaryCta
-        disabled={!done}
-        onClick={() => {
-          log('success')
-          onNext()
-        }}
-      >
-        You&apos;ve got the pieces. Your turn to say it.
-      </PrimaryCta>
+      {done ? (
+        <PrimaryCta
+          onClick={() => {
+            log('success')
+            onNext()
+          }}
+        >
+          You&apos;ve got the pieces. Your turn to say it.
+        </PrimaryCta>
+      ) : (
+        <p className="text-center text-sm font-bold text-ink-soft">
+          {allPlaced
+            ? 'Not quite — tap Check, or tap a piece to move it back.'
+            : 'Tap each piece to add it. Tap again in the box to undo.'}
+        </p>
+      )}
     </ActivityShell>
   )
 }
@@ -641,8 +674,7 @@ function SayIt({ onNext }: { onNext: () => void }) {
   const [value, setValue] = useState('')
   const [failed, setFailed] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
-  const normalized = value.replace(/\s/g, '')
-  const ok = normalized === unit.targetSentence.replace(/\s/g, '')
+  const ok = samePhrase(value, unit.targetSentence)
 
   const log = (outcome: 'success' | 'fail' | 'hint' | 'reveal') => {
     const key = itemKey(focusId)
@@ -671,7 +703,7 @@ function SayIt({ onNext }: { onNext: () => void }) {
             setValue(e.target.value)
             setFailed(false)
           }}
-          placeholder="今日は…"
+          placeholder={sentencePlaceholder(unit.targetSentence)}
         />
       </label>
       <button type="button" className={iconRow} disabled>
@@ -706,49 +738,6 @@ function SayIt({ onNext }: { onNext: () => void }) {
       >
         Check
       </PrimaryCta>
-    </ActivityShell>
-  )
-}
-
-function BossShell({
-  onNext,
-  onSkip,
-}: {
-  onNext: () => void
-  onSkip: () => void
-}) {
-  const unit = useActiveUnit()
-  const { sessionKind } = useAppState()
-  const isStash = sessionKind === 'stash'
-
-  return (
-    <ActivityShell eyebrow="Boss Challenge">
-      <p className="inline-flex w-fit items-center rounded-full border-2 border-dashed border-ink/50 bg-paper/80 px-2.5 py-1 text-[0.75rem] font-extrabold tracking-wide uppercase opacity-80">
-        Needs connection · Phase 2
-      </p>
-      <GuideBubble name={useGuideName()}>
-        {isStash
-          ? 'You practiced your own phrases. Live conversation lands in Phase 2 — claim the checkpoint?'
-          : 'You just learned how to talk about today. Live conversation lands in Phase 2 — for now, claim the checkpoint?'}
-      </GuideBubble>
-      <SentenceFrame
-        sentence={
-          isStash
-            ? unit.targetSentence
-            : `${unit.targetSentence.replace(/[.。]$/, '')}?`
-        }
-        gloss={
-          isStash
-            ? unit.targetGloss
-            : 'Do you have work today? (coming soon)'
-        }
-      />
-      <SoftChoice
-        primaryLabel="Why not! — All Clear"
-        secondaryLabel="Nah… skip for now"
-        onPrimary={onNext}
-        onSecondary={onSkip}
-      />
     </ActivityShell>
   )
 }

@@ -14,6 +14,27 @@ const GLOSS_DECOYS = [
 
 const MAX_STASH_PRACTICE = 3
 
+/** Soft type-in hint from the target sentence, language-agnostic. */
+export function sentencePlaceholder(sentence: string): string {
+  const trimmed = sentence.trim()
+  if (!trimmed) return '…'
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) {
+    return `${words[0]} ${words[1]}…`
+  }
+  const stem = trimmed.replace(/[。．.!?？]+$/u, '')
+  const take = Math.min(3, stem.length)
+  return `${stem.slice(0, take)}…`
+}
+
+/** Compare learner text to a target, ignoring space and end punctuation. */
+export function samePhrase(a: string, b: string): boolean {
+  const n = (s: string) =>
+    s.toLowerCase().replace(/[\s、。．.!?？,，]+/g, '')
+  const left = n(a)
+  return left.length > 0 && left === n(b)
+}
+
 /** Split a sentence into rebuildable chunks (spaces preferred; else whole string). */
 export function chunkSentence(sentence: string): string[] {
   const trimmed = sentence.trim()

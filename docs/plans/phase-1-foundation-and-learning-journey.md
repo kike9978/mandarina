@@ -1,6 +1,6 @@
 # Phase 1 — Foundation & Learning Journey
 
-**Goal:** Ship a mobile-first PWA where the learner can complete one authored vertical slice of the journey — from home “Continue” through Encounter → Understand → Recall → Reconstruct → Produce — with **invisible local scheduling**, playful UI, and no dependency on cloud AI yet.
+**Goal:** Ship a mobile-first PWA where the learner can complete one authored vertical slice of the journey — from home “Continue” through Encounter → Understand → Recall → Reconstruct → Produce — with **invisible local scheduling**, playful UI, and no in-app calls to a cloud model. Curriculum can still grow: the learner copies a progress brief into any chat model they already use, then pastes the JSON pack back so Mandarina schedules it like any other stash.
 
 **Maps to original plan:** Phases 1–2 (Foundation + Learning Core), rewritten around the learner journey instead of skill modules.
 
@@ -23,8 +23,9 @@ By the end of Phase 1 the app can:
 8. Show progress as **abilities** (“I can…”) rather than Vocab/Grammar % bars.
 9. Feel unmistakably **playful** in the Game Builder Garage / lesson-map sense (workshop grid, path adventure, guide, celebrations) — not a SaaS toolkit.
 10. Let the learner **stash** phrases/vocab and optionally **import** simple local packs so learning isn’t limited to seed curriculum or cloud AI.
+11. Let the learner **grow the journey by hand**: copy a progress brief, paste it into any chat model, and bring back a JSON pack that enters the same stash path. The app never calls the model.
 
-**Out of scope for Phase 1:** live AI conversation, Deno proxy, Groq/Gemini, Whisper, full multi-script expansion, cloud sync, accounts, Anki `.apkg` import (defer), live web dictionary APIs as the core path.
+**Out of scope for Phase 1:** live AI conversation, Deno proxy, Groq/Gemini, Whisper, in-app model calls, full multi-script expansion, cloud sync, accounts, Anki `.apkg` import (defer), live web dictionary APIs as the core path. The hand-carried tutor pack is in scope; Boss Challenge as a live conversation stays Phase 2.
 
 ---
 
@@ -38,7 +39,8 @@ By the end of Phase 1 the app can:
 | Mastery model | Multi-facet per item (not one boolean) | recognition, listening, production, writing, contextualUse |
 | Reviews | Invisible SRS language | “Let’s bring a few things back” — never “37 FSRS due” |
 | Gamification | Light & meaningful | Momentum, checkpoints, session clear, ability unlocks |
-| Learner content | Stash + simple import | Phrases preferred; feeds same orchestrator — not a separate Anki app |
+| Learner content | Stash + simple import + tutor pack | Phrases preferred; feeds same orchestrator — not a separate Anki app |
+| Tutor pack | Clipboard only | App writes the brief and reads JSON back. Learner carries both. No API key, no proxy |
 | Local dictionary | Bundled subset + Fuse.js | Lookups offline; no live API required |
 | Auth / cloud DB | None | Local-first personal MVP |
 
@@ -54,6 +56,7 @@ REACT PWA (Vite or Next — pick one and stick)
   ├─ Session orchestrator (readiness + bridges + momentum)
   ├─ Curriculum fixtures (abilities → units → items)
   ├─ Learner stash & import (user phrases → same item/facet model)
+  ├─ Tutor pack (progress brief out · JSON pack in · same stash path)
   ├─ Optional local dictionary pack (Fuse.js)
   ├─ Dexie / IndexedDB
   │    ├─ learner profile & settings
@@ -65,7 +68,7 @@ REACT PWA (Vite or Next — pick one and stick)
   └─ ts-fsrs (local scheduling)
 ```
 
-Cloud AI appears only in **Phase 2**. Local stash/import/dictionary are **on-device** — they reduce reliance on authored seed content and on Phase 2 backend features.
+The app makes **no model calls** in Phase 1. Live conversation (Deno / Groq / Gemini) stays **Phase 2**. Stash, file import, the tutor-pack clipboard, and the local dictionary are **on-device** — they reduce reliance on authored seed content and on Phase 2 backend features. The learner may still use a chat model they already pay for; Mandarina only hands them the brief and accepts the pack.
 
 ---
 
@@ -133,6 +136,7 @@ Phase 1 UI must read as a **playful creative workshop / adventure lesson**, not 
 | Checkpoint / clear | `Crown` |
 | Soft feedback | `CircleHelp`, `Lightbulb`, `Check` |
 | Soft Home rows | `RotateCcw` (comeback), `Pencil` (characters), `MessageCircle` (milestone), `BookmarkPlus` (stash) |
+| Tutor pack | `ClipboardCopy` (copy the brief), `ClipboardPaste` (bring the pack back) |
 
 No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 44px.
 
@@ -152,6 +156,7 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
 | `SoftFeedback` | Not quite / hint / try again / answer |
 | `StashSheet` | Playful quick-add phrase / from-context save |
 | `PackImport` | “Bring a pack aboard” file flow |
+| `TutorPackSheet` | Copy a progress brief; paste JSON back; preview before it joins the library |
 
 ### Acceptance
 
@@ -184,11 +189,13 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
    Ability checklist (“I can…”) + optional light **constellation / skill-focus** mock (Skyrim-inspired, secondary only).  
    No Vocab/Grammar % bars as the hero.
 6. **Stash (learner content UI)**  
-   Quick-add phrase flow — playful “Stash it” sheet, not an admin form (see A6).
+   Quick-add phrase flow — playful “Stash it” sheet, not an admin form (see A6).  
+   **Grow the journey** lives here too: copy a brief, paste a pack back (see A7). Not a new tab.
 7. **Session runner**  
    Full activity sequence UI for one unit — workshop grid, guide bubble, path chrome.
 8. **Session complete**  
-   Mint sunburst **or** crown “All Clear!” celebration with playful motion; then return Home.
+   Mint sunburst **or** crown “All Clear!” celebration with playful motion; then return Home.  
+   Optional quiet line after the checkpoint — “Want more phrases?” — links to the tutor pack. It never outshouts Back to Home.
 
 ### Playful activity naming (lock copy)
 
@@ -210,6 +217,7 @@ No emoji as primary nav/controls. Icon + label in bottom nav; touch targets ≥ 
 - Failure: “Not quite” → hint → retry → reveal — never harsh ❌ WRONG as primary state.
 - Celebrations: “All Clear!”, “Game Complete!” energy for session/ability clears; reserve quieter copy for mid-activity success.
 - Stash / import: “Stash it”, “Add to my journey”, “Bring a pack aboard” — not “Create card” / “Import CSV”.
+- Tutor pack: “Grow the journey”, “Copy the brief”, “Bring the pack back” — not “Export prompt”, “LLM”, “API”, or “JSON schema” as the primary labels. The paste field can say the answer should be a pack.
 
 ### Acceptance
 
@@ -340,7 +348,7 @@ Same activity names and soft-failure language as seed units.
 
 - Anki `.apkg` import  
 - Live translation / online dictionary as the default path  
-- Auto-generating example sentences via cloud AI  
+- The app calling a model to write examples (the learner may do that themselves — see A7)
 
 ### Acceptance
 
@@ -358,7 +366,112 @@ Same activity names and soft-failure language as seed units.
 - [ ] Playfulness checklist passed on Home, Journey, Session, Clear
 - [ ] Visual language rule satisfied (grid/sunburst, thick outlines, no emoji-primary icons)
 - [ ] Stash + pack-import UIs demoable with fixtures
+- [ ] Tutor-pack sheet demoable: copy a fixture brief, paste sample JSON, see phrases in the library
 - [ ] No cloud calls required to demo Phase 1 UX
+
+---
+
+## A7. Tutor pack — brief out, JSON back (frontend-only)
+
+*A hand-carried curriculum step. The learner copies a progress brief into any chat model, then pastes the pack back. Mandarina never opens a network connection for this. Fixtures first; wire the real snapshot in Part B.*
+
+### Principles
+
+- Same door as stash. A brought-back pack is learner content, practiced on the template bridge — not a second home and not a live Boss Challenge.
+- Home stays “Continue first.” Entry is Stash (“Grow the journey”) plus an optional quiet line on All Clear.
+- The brief describes the learner in coach language. It never includes intervals, stability, card ids, or “due cards.”
+- The model proposes phrases. It does not set schedules, mark abilities done, or skip Meet It.
+- Preview before commit. The learner sees the phrases and can reject the pack.
+- One step ahead. A few phrases that reuse what they know and add one new move — not a vocab dump.
+
+### Flow to mock
+
+```text
+Stash → Grow the journey
+  → Guide explains: copy this note into a tutor you already use, then bring the answer back
+  → Brief (read-only) + Copy the brief
+  → Paste field
+  → Preview (“Pack aboard — 4 phrases”) with Why not! / Nah…
+  → Phrases appear in the library
+  → Practice these (same bridge as A6)
+```
+
+Part A may use a **fixture brief** (fixed “talk about today” snapshot) so the sheet is demoable before Dexie. The paste parser still runs for real: extract JSON, validate, show the preview.
+
+### Brief contents (what the copied note includes)
+
+The note is plain text the learner can paste anywhere. It tells the model:
+
+- Target language, writing familiarity, and the goal they picked (daily life, travel, work, or fun). This is the first place `goalId` steers content — the seed unit does not.
+- Abilities as “I can…”, each done, in progress, or not yet.
+- Language they already have: surface, reading, gloss, and example sentence when present (seed + stash). Ask the model not to repeat these.
+- Soft weak spots only: items they missed, hinted, or had revealed, and which skill was shaky (recognize, hear, say, write, use). No numbers that look like a deck.
+- A cap of **3–8 phrases**.
+- The reply contract below, and the line: reply with only that JSON.
+
+**Progress rules baked into the brief** (so a fixture and the later generator say the same thing):
+
+| Learner state | What the brief asks for |
+|---|---|
+| New to a non-Latin script, writing warm-up not cleared | A few more marks in the same family as the warm-up, each with reading, hint, and a tiny example — not a dense sentence |
+| Latin-script language, or script already comfortable | Phrases first; spelling notes only if they marked sounds as new |
+| Current ability still in progress (e.g. “Talk about today”) | Reuse known pieces (“today”, “I have”) and add one neighbor move |
+| Recent misses are on saying / building | More example sentences of words they already know, not a pile of new words |
+| Language has no seed phrase unit yet (Mandarin, Korean, Arabic in the current slice) | The first useful phrase cluster for their goal — this pack is the curriculum |
+
+### Reply contract (v1)
+
+The app accepts the same rows as file import, so a pack from a model and a pack from a file share one parser.
+
+```json
+[
+  {
+    "surface": "水をください",
+    "gloss": "Water, please",
+    "reading": "みずをください",
+    "exampleSentence": "水をください。"
+  }
+]
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `surface` | yes | Phrase preferred; a bare word is allowed |
+| `gloss` | yes | Learner-language meaning |
+| `reading` | no | Kana, pinyin, romanization |
+| `exampleSentence` | strongly encouraged | Unlocks Build It / Say It. Without it, practice stays Meet → Spot → Break It Down → Your Turn |
+| `abilityTag` | no | Optional “helps me…” label, same as the stash sheet. Display only in Phase 1 — it does not unlock an ability |
+
+Parser behavior for the mock and the engine:
+
+- Accept a raw array or a ```json fence with chatter around it. Take the first array.
+- Drop rows missing `surface` or `gloss`.
+- Trim strings. Skip empty packs with a coach line (“Hmm — no phrases in that pack”).
+- Skip surfaces already in the library or the seed unit, and say how many were already aboard.
+- Do not trust extra fields (`due`, `mastery`, `status`, `reps`). Ignore them.
+
+### Copy
+
+- Sheet title: **Grow the journey**
+- Primary: **Copy the brief**
+- Paste action: **Bring the pack back**
+- Success: **Pack aboard — N phrases ready when you are**
+- Guide: “I’ll write a note about where you are. Paste it to a tutor, then bring their pack back here. I won’t talk to them myself.”
+
+### Explicitly defer
+
+- Sending the brief to a provider from the app
+- Letting the pack replace the seed Journey path or mark “Order food” done
+- A richer unit object (`buildChunks`, turn options, boss scene) until a real imported-unit record exists — v1 is stash rows only
+- Storing the chat transcript
+
+### Acceptance
+
+- Copy puts the brief on the clipboard (or selects it, if clipboard permission fails) with no network request.
+- Pasting the sample pack JSON shows a preview, then the phrases in the library.
+- A fenced reply and a bare array both parse. A reply with no phrases does not wipe the library.
+- Home Continue is unchanged. Practice these on the new rows uses the A6 bridge.
+- Learner-facing copy never says FSRS, SRS, or “due cards.”
 
 ---
 
@@ -418,7 +531,7 @@ LearningSignal
   id, source (attempt|manual|import), itemId, facet, strength, createdAt, consumedByScheduler?
 
 ContentPack
-  id, name, importedAt, itemCount, format (json|tsv)
+  id, name, importedAt, itemCount, format (json|tsv|paste)
 
 Settings
   key, value  (TTS voice, reduced motion, guide name, stashNudgePhrases, etc.)
@@ -466,6 +579,8 @@ Exact FSRS field mapping should follow `ts-fsrs` types; keep a clear adapter lay
 5. **Interleaving** — comeback / mixed sessions include due **user** items alongside seed (cap totals; absence policy still applies).
 6. **Local dictionary pack** (recommended for Japanese MVP) — ship or download-once a **subset** JMDict-style JSON; Fuse.js search; “Stash from look-up” writes local items only.
 7. **Export backup** (nice-to-have) — dump user items/packs as JSON for device transfer without a server.
+8. **Tutor-pack brief** — build the A7 note from the live profile, abilities, known items, and open learning signals. Clipboard only.
+9. **Tutor-pack ingest** — same parser as JSON import; `source: import`; `ContentPack.format: paste`; empty FSRS cards (not due until practiced); preview already confirmed in the UI.
 
 ### Pedagogy rules (enforced in engine)
 
@@ -478,13 +593,15 @@ Exact FSRS field mapping should follow `ts-fsrs` types; keep a clear adapter lay
 
 - Anki `.apkg`  
 - Cloud translation / live dictionary APIs as required dependency  
-- AI-generated examples  
+- The app calling a model to write examples (learner-carried packs are in scope)
 
 ### Acceptance
 
 - Stash → reload → item still present with facets.
 - Imported TSV/JSON appears in library and can enter a real session queue.
-- Airplane mode: stash + import file from disk + dictionary subset (if bundled) all work.
+- Airplane mode: stash + import file from disk + copy brief + paste pack + dictionary subset (if bundled) all work.
+- A pasted pack does not appear in comebacks until the learner has practiced it.
+- The brief omits FSRS fields even if the debug drawer can see them.
 - Home Continue still prioritizes journey/comeback language; stash is additive.
 
 ---
@@ -535,6 +652,7 @@ Thresholds can be simple (e.g. 2 correct in last 3 recognition attempts) — tun
 | Unit mid-progress | “Continue your lesson · 18 min” |
 | Fresh user stashes | “You stashed 2 phrases — want to lock them in?” |
 | Pack imported | “Pack aboard — 24 phrases ready when you are” |
+| Tutor pack pasted | Same line; phrases wait for “Practice these” |
 
 ### Acceptance
 
@@ -559,6 +677,7 @@ Thresholds can be simple (e.g. 2 correct in last 3 recognition attempts) — tun
 | MomentumBanner | derived from in-session success streak |
 | StashSheet | create user item/unit + facets; optional enqueue |
 | PackImport | parse → ContentPack + items |
+| TutorPackSheet | progress snapshot → brief text; pasted JSON → same ingest as PackImport |
 | Dictionary look-up | Fuse search → optional stash |
 
 ### Rating mapping (suggestion)
@@ -585,13 +704,13 @@ Keep mapping in one module for later tuning.
 ### Deliverables
 
 - Service worker caches app shell + seed curriculum assets + **bundled dictionary subset** (if used).
-- Offline: Home, Journey, Practice session, Progress, **Stash**, **file import** all work.
+- Offline: Home, Journey, Practice session, Progress, **Stash**, **file import**, and **tutor pack** (copy + paste) all work. The chat model is outside the app; Mandarina does not need to be online to write the brief or accept the pack.
 - Online-only badges reserved for Phase 2 AI features (hidden or “needs connection” stubs).
 
 ### Acceptance
 
 - Airplane mode demo completes a full unit session from cache.
-- Airplane mode: stash a phrase + import a local sample pack.
+- Airplane mode: stash a phrase + import a local sample pack + paste a tutor pack.
 
 ---
 
@@ -608,6 +727,7 @@ Keep mapping in one module for later tuning.
 - [ ] Dexie schema v1 + migrations (incl. `source`, ContentPack, exampleSentence)
 - [ ] Seed curriculum for one ability/unit
 - [ ] Stash + JSON/TSV import persist and schedule via template bridges
+- [ ] Tutor brief built from real progress; pasted JSON persists as import stash and does not schedule until practiced
 - [ ] Local dictionary subset searchable (or explicitly deferred with issue note)
 - [ ] `ts-fsrs` adapter per facet
 - [ ] Orchestrator drives Home + session queue (seed + user interleave)
@@ -628,12 +748,14 @@ Keep mapping in one module for later tuning.
 - Reduced-motion path.
 - Copy review for jargon leaks (FSRS, SRS, “due cards”) and stash tone.
 - Stash + pack-import UI walkthrough.
+- Tutor pack: copy brief, paste fenced JSON, paste a duplicate surface, paste an empty reply.
 
 ### Engine (Part B)
 
 - Unit tests: readiness gates, rating mapping, absence cap, template bridge for user items.
 - Integration: complete unit → ability unlock; stash → session → facet due change.
-- Import: sample JSON/TSV golden files.
+- Import: sample JSON/TSV golden files, plus a fenced tutor-pack reply and a duplicate-surface case.
+- Brief builder: fixture profile yields a note with goal, abilities, known surfaces, and no FSRS words.
 - Persistence: reload mid-session; reload after stash.
 - Time travel: advance clock → comeback session composition includes user items when due.
 
@@ -647,11 +769,13 @@ Keep mapping in one module for later tuning.
 | M2 Session UX slice | A | Fixture unit playable on grid path |
 | M3 Celebrations & soft fail | A | Sunburst/crown clear + soft failure feel right |
 | M3b Stash & packs UI | A | Stash sheet + import mock demoable |
+| M3c Tutor pack UI | A | Copy brief + paste preview demoable on Stash |
 | M4 Schema & seed | B | Data survives reload |
 | M4b Stash engine | B | User/import items + template bridges live |
+| M4c Tutor pack engine | B | Brief from live progress; pasted pack persists like import |
 | M5 Orchestrator live | B | Home Start is engine-driven (seed + interleave) |
 | M6 Offline PWA | B | Full loop + stash/import without network |
-| M7 Phase 1 freeze | A+B | Vertical slice + stash demoable on phone |
+| M7 Phase 1 freeze | A+B | Vertical slice + stash + tutor pack demoable on phone |
 
 ---
 
@@ -664,7 +788,8 @@ Phase 1 leaves explicit extension points:
 3. **Write It** activity shell ready for stroke engine.
 4. **Guide / AI context object** shape drafted (level, unit, targets, weaknesses, **stashed targets**) even if unused.
 5. Facet `contextualUse` mostly idle until live conversation exists.
-6. User-stashed phrases become natural Boss Challenge targets once AI is live.
+6. User-stashed phrases — including tutor packs — become natural Boss Challenge targets once AI is live.
 7. Playfulness tokens/components reused — Phase 2 must not introduce a flatter “tools” aesthetic for writing/AI screens.
+8. **Tutor pack stays the slow path.** Phase 2’s live proxy does not replace “Copy the brief / Bring the pack back.” In-session conversation and between-session curriculum growth remain different jobs.
 
 Do not start Deno/Groq work until M7 is demoable.

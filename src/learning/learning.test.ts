@@ -6,7 +6,12 @@ import {
 } from './orchestrator'
 import { outcomeToRating } from './fsrsAdapter'
 import { Rating } from 'ts-fsrs'
-import { buildUnitFromStash, chunkSentence } from './templateBridge'
+import {
+  buildUnitFromStash,
+  chunkSentence,
+  samePhrase,
+  sentencePlaceholder,
+} from './templateBridge'
 import type { StashedPhrase } from '../data/fixtures'
 
 describe('decideDailyPlan', () => {
@@ -84,6 +89,29 @@ describe('outcomeToRating', () => {
   })
 })
 
+describe('sentencePlaceholder', () => {
+  it('uses the first words of a spaced sentence', () => {
+    expect(sentencePlaceholder('Hari ini saya ada kerja.')).toBe('Hari ini…')
+    expect(sentencePlaceholder('Hoy tengo trabajo.')).toBe('Hoy tengo…')
+  })
+
+  it('uses a short stem for unspaced scripts', () => {
+    expect(sentencePlaceholder('今日は仕事があります。')).toBe('今日は…')
+  })
+})
+
+describe('samePhrase', () => {
+  it('ignores spaces and a trailing period', () => {
+    expect(samePhrase('Hari ini saya ada kerja', 'Hari ini saya ada kerja.')).toBe(
+      true,
+    )
+    expect(samePhrase('今日は仕事があります', '今日は仕事があります。')).toBe(
+      true,
+    )
+    expect(samePhrase('Hoy tengo trabajo', 'Hoy tengo comida')).toBe(false)
+  })
+})
+
 describe('chunkSentence / template bridge', () => {
   it('splits spaced sentences', () => {
     expect(chunkSentence('Hari ini saya ada kerja.')).toEqual([
@@ -129,6 +157,35 @@ describe('chunkSentence / template bridge', () => {
     ]
     const unit = buildUnitFromStash(phrases, 'ja')
     expect(unit?.productionReady).toBe(false)
+  })
+})
+
+describe('MockConversationProvider', () => {
+  it('briefs from the unit and clears after a target reply', async () => {
+    const { MockConversationProvider } = await import('./conversation')
+    const unit = buildUnitFromStash(
+      [
+        {
+          id: 's1',
+          surface: '元気ですか？',
+          gloss: 'How are you?',
+          exampleSentence: 'おはよう！元気ですか？',
+          source: 'user',
+        },
+      ],
+      'ja',
+    )
+    expect(unit).toBeTruthy()
+    const provider = new MockConversationProvider()
+    const brief = provider.brief(unit!)
+    expect(brief.targets[0]).toContain('おはよう')
+    await provider.start(unit!)
+    const miss = await provider.reply(unit!, 'hello')
+    expect(miss.correction?.expected).toBe(unit!.targetSentence)
+    const hit = await provider.reply(unit!, unit!.targetSentence)
+    expect(hit.usedTarget).toBe(true)
+    const wrap = await provider.reply(unit!, unit!.targetSentence)
+    expect(wrap.done).toBe(true)
   })
 })
 

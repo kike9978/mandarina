@@ -144,7 +144,7 @@ export const PHRASE_UNITS: Partial<Record<LanguageId, PhraseUnit>> = {
       { id: 'ada', surface: 'ada', gloss: 'there is / have' },
       { id: 'kerja', surface: 'kerja', gloss: 'work' },
     ],
-    buildChunks: ['Hari ini', 'saya ada', 'kerja'],
+    buildChunks: ['Hari', 'ini', 'saya', 'ada', 'kerja'],
     spotGlossA: 'today',
     spotGlossB: 'work',
     turnPromptSurface: 'kerja',

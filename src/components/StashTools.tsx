@@ -1,6 +1,7 @@
 import { BookmarkPlus, PackageOpen } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { SAMPLE_PACK_JSON } from '../data/fixtures'
+import { getPhraseUnit, SAMPLE_PACK_JSON } from '../data/fixtures'
+import { useAppState } from '../state/AppState'
 import { PrimaryCta } from './ui'
 
 const fieldClass =
@@ -23,6 +24,8 @@ export function StashSheet({
   initialSurface?: string
   initialExample?: string
 }) {
+  const { profile } = useAppState()
+  const sample = getPhraseUnit(profile.languageId)
   const [surface, setSurface] = useState(initialSurface)
   const [gloss, setGloss] = useState('')
   const [reading, setReading] = useState('')
@@ -67,7 +70,7 @@ export function StashSheet({
           className={fieldClass}
           value={surface}
           onChange={(e) => setSurface(e.target.value)}
-          placeholder="今日は仕事があります"
+          placeholder={sample?.targetSentence ?? 'Your phrase'}
           required
         />
       </label>
@@ -77,7 +80,7 @@ export function StashSheet({
           className={fieldClass}
           value={gloss}
           onChange={(e) => setGloss(e.target.value)}
-          placeholder="I have work today"
+          placeholder={sample?.targetGloss ?? 'Meaning'}
           required
         />
       </label>
@@ -87,7 +90,7 @@ export function StashSheet({
           className={fieldClass}
           value={reading}
           onChange={(e) => setReading(e.target.value)}
-          placeholder="きょうはしごとがあります"
+          placeholder={sample?.items[0]?.reading ?? 'Reading if you use one'}
         />
       </label>
       <label className="grid gap-1.5 text-[0.85rem] font-extrabold">
