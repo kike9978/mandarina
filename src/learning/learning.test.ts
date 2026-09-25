@@ -153,13 +153,10 @@ describe('outcomeToRating', () => {
 })
 
 describe('sentencePlaceholder', () => {
-  it('uses the first words of a spaced sentence', () => {
-    expect(sentencePlaceholder('Hari ini saya ada kerja.')).toBe('Hari ini…')
-    expect(sentencePlaceholder('Hoy tengo trabajo.')).toBe('Hoy tengo…')
-  })
-
-  it('uses a short stem for unspaced scripts', () => {
-    expect(sentencePlaceholder('今日は仕事があります。')).toBe('今日は…')
+  it('does not leak the opening of the sentence', () => {
+    expect(sentencePlaceholder('Hari ini saya ada kerja.')).toBe('…')
+    expect(sentencePlaceholder('Hoy tengo trabajo.')).toBe('…')
+    expect(sentencePlaceholder('今日は仕事があります。')).toBe('…')
   })
 })
 
@@ -241,10 +238,13 @@ describe('MockConversationProvider', () => {
     expect(unit).toBeTruthy()
     const provider = new MockConversationProvider()
     const brief = provider.brief(unit!)
-    expect(brief.targets[0]).toContain('おはよう')
+    expect(brief.targets.join(' ')).not.toContain('おはよう')
+    expect(brief.targets[0]).toBe('How are you?')
     await provider.start(unit!)
     const miss = await provider.reply(unit!, 'hello')
     expect(miss.correction?.expected).toBe(unit!.targetSentence)
+    const prefix = await provider.reply(unit!, unit!.targetSentence.slice(0, 4))
+    expect(prefix.usedTarget).toBe(false)
     const hit = await provider.reply(unit!, unit!.targetSentence)
     expect(hit.usedTarget).toBe(true)
     const wrap = await provider.reply(unit!, unit!.targetSentence)

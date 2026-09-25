@@ -1,7 +1,7 @@
 import { BookmarkPlus, MessageCircle, Pencil, RotateCcw } from 'lucide-react'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { hasPhraseUnit } from '../data/fixtures'
+import { phrasePathOpen } from '../data/fixtures'
 import { languageById, orthographyLabel } from '../data/languages'
 import { decideDailyPlan } from '../learning/orchestrator'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -30,11 +30,15 @@ export function PracticePage() {
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
   const isLatin = lang.orthographyMode === 'latin-sounds'
-  const phraseReady =
-    hasPhraseUnit(profile.languageId) &&
-    (isLatin || profile.scriptFamiliarity !== 'new')
   const scriptDone =
     scriptCleared || abilities.find((a) => a.id === 'script-basics')?.status === 'done'
+  const phraseReady = phrasePathOpen(
+    profile.languageId,
+    profile.scriptFamiliarity,
+    scriptDone,
+  )
+  const lessonCleared =
+    abilities.find((a) => a.id === 'talk-today')?.status === 'done'
   const ortho = orthographyLabel(lang)
   const canResume = sessionStarted && !!activeUnit && !sessionCleared
 
@@ -50,6 +54,7 @@ export function PracticePage() {
         writingDue: writingDueCount,
         bossReady,
         writingNoun: isLatin ? 'spellings' : 'characters',
+        lessonCleared,
       }),
     [
       needsScriptFirst,
@@ -61,6 +66,7 @@ export function PracticePage() {
       stash.length,
       lastActiveAt,
       bossReady,
+      lessonCleared,
     ],
   )
 

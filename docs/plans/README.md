@@ -10,4 +10,4 @@ The running app followed Phase 1. The next pass is the redesign plan: flows the 
 
 **UI rules:** [`.cursor/rules/playful-visual-language.mdc`](../../.cursor/rules/playful-visual-language.mdc) — Lucide icons + Game Builder Garage / lesson-map playfulness (grid, path, guide, sunburst/crown clears, SoftChoice energy). Skyrim-style constellations only on Progress.
 
-**Order:** Redesign plan (language parity, flow honesty, real grades, honest claims, then clipboard jobs) before Phase 2 proxy/AI work. The app still does not call a model. Phase 2 does not paper over a success that was only a tap. The first lesson does not ship for Indonesian or Spanish alone.
+**Order:** Redesign phases in [redesign-flow-and-proficiency.md](./redesign-flow-and-proficiency.md). Check a box only when that behavior is in the running app. R1 language parity, then R2 honest path, R3 real grades, R4 honest claims, then R5 clipboard coach and R6 journal. The old Phase 2 proxy and stroke work wait until R1–R4 are done for all six languages. The app still does not call a model. The first lesson does not ship for Indonesian or Spanish alone.

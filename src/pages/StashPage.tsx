@@ -1,19 +1,24 @@
 import { useNavigate } from 'react-router-dom'
 import { searchDictionary } from '../learning/dictionary'
+import { readingSpans } from '../learning/readingAid'
 import { stashPracticeCap } from '../learning/templateBridge'
 import { useAppState, useGuideName } from '../state/AppState'
 import { PackImport, StashSheet, TutorPackSheet } from '../components/StashTools'
+import { AidedText } from '../components/SessionBits'
 import { GuideBubble, PrimaryCta } from '../components/ui'
 import { useEffect, useMemo, useState } from 'react'
 
 export function StashPage() {
-  const { stash, addStash, importPhrases, startStashSession } = useAppState()
+  const { stash, addStash, importPhrases, startStashSession, profile } = useAppState()
   const guideName = useGuideName()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
 
-  const hits = useMemo(() => searchDictionary(query), [query])
+  const hits = useMemo(
+    () => searchDictionary(query, profile.languageId),
+    [query, profile.languageId],
+  )
   const practiceCount = Math.min(stash.length, stashPracticeCap())
   const withExample = stash.filter((s) => s.exampleSentence?.trim()).length
 
@@ -60,14 +65,21 @@ export function StashPage() {
             aria-label="Dictionary search"
           />
           <ul className="m-0 grid list-none gap-2 p-0">
-            {hits.map((h) => (
+            {hits
+              .filter((h) => readingSpans(profile.languageId, h.surface, h.reading))
+              .map((h) => (
               <li
                 key={h.surface}
                 className="flex items-center justify-between gap-3 rounded-xl border-[2.5px] border-ink bg-paper px-3 py-2.5 font-bold"
               >
                 <div>
-                  <strong>{h.surface}</strong>
-                  {h.reading && <span> · {h.reading}</span>}
+                  <strong>
+                    <AidedText
+                      languageId={profile.languageId}
+                      text={h.surface}
+                      reading={h.reading}
+                    />
+                  </strong>
                   <p>{h.gloss}</p>
                 </div>
                 <button
@@ -103,11 +115,20 @@ export function StashPage() {
                     key={s.id}
                     className="flex flex-col items-start gap-0.5 rounded-xl border-[2.5px] border-ink bg-paper px-3 py-2.5 font-bold"
                   >
-                    <strong>{s.surface}</strong>
+                    <strong>
+                      <AidedText
+                        languageId={profile.languageId}
+                        text={s.surface}
+                        reading={s.reading}
+                      />
+                    </strong>
                     <span>{s.gloss}</span>
                     {s.exampleSentence ? (
                       <span className="text-sm text-ink-soft">
-                        {s.exampleSentence}
+                        <AidedText
+                          languageId={profile.languageId}
+                          text={s.exampleSentence}
+                        />
                       </span>
                     ) : (
                       <span className="text-sm text-ink-soft">

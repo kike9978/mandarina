@@ -8,9 +8,9 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  SAMPLE_LISTEN_LINES_JSON,
-  SAMPLE_LISTEN_TRANSCRIPT,
-  SAMPLE_SOURCES_PACK_JSON,
+  sampleListenLinesJson,
+  sampleListenTranscript,
+  sampleSourcesPackJson,
   type ListeningSource,
 } from '../data/fixtures'
 import {
@@ -26,6 +26,7 @@ import {
   snapshotPullLinesBrief,
 } from '../learning/tutorSnapshot'
 import { useAppState, useGuideName } from '../state/AppState'
+import { AidedText } from './SessionBits'
 import { SourcePlayer } from './SourcePlayer'
 import { GuideBubble, PrimaryCta, SoftChoice } from './ui'
 
@@ -294,7 +295,7 @@ function FindListenSheet({
         type="button"
         className={`${chipClass} w-fit`}
         onClick={() => {
-          setPaste(SAMPLE_SOURCES_PACK_JSON)
+          setPaste(sampleSourcesPackJson(profile.languageId))
           setPreview(null)
           setMessage(null)
         }}
@@ -370,6 +371,7 @@ function WordsCatcher({
   transcript?: string
   onSave: (text: string) => void | Promise<void>
 }) {
+  const { profile } = useAppState()
   const fileRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -392,14 +394,24 @@ function WordsCatcher({
   }
 
   if (transcript) {
-    const preview = transcript.split('\n').slice(0, 4).join(' ')
+    const lines = transcript
+      .split('\n')
+      .slice(0, 4)
+      .map((line) => line.trim())
+      .filter(Boolean)
     return (
       <div className="grid gap-2 rounded-xl border-2 border-ink bg-[#e8fff4] p-3">
         <p className="inline-flex items-center gap-1.5 font-extrabold">
           <FileText size={18} strokeWidth={2.25} aria-hidden />
           Words aboard
         </p>
-        <p className="text-sm font-bold text-ink-soft">{preview}</p>
+        <div className="grid gap-1 text-sm font-bold text-ink-soft">
+          {lines.map((line) => (
+            <p key={line}>
+              <AidedText languageId={profile.languageId} text={line} />
+            </p>
+          ))}
+        </div>
       </div>
     )
   }
@@ -462,7 +474,7 @@ function WordsCatcher({
         type="button"
         className={`${chipClass} w-fit`}
         onClick={() => {
-          setDraft(SAMPLE_LISTEN_TRANSCRIPT)
+          setDraft(sampleListenTranscript(profile.languageId))
           setError(null)
         }}
       >
@@ -611,7 +623,14 @@ function SourceSheet({
       <p className="leading-snug font-bold">{source.why}</p>
       {source.listenFor && source.listenFor.length > 0 && (
         <p className="text-sm font-bold text-ink-soft">
-          Listen for: {source.listenFor.join(' · ')}
+          Listen for:{' '}
+          {source.listenFor.map((word) => (
+            <AidedText
+              key={word}
+              languageId={profile.languageId}
+              text={word}
+            />
+          ))}
         </p>
       )}
 
@@ -737,7 +756,7 @@ function SourceSheet({
             type="button"
             className={`${chipClass} w-fit`}
             onClick={() => {
-              setPaste(SAMPLE_LISTEN_LINES_JSON)
+              setPaste(sampleListenLinesJson(profile.languageId))
               setPreview(null)
               setMessage(null)
             }}
@@ -751,6 +770,7 @@ function SourceSheet({
               const parsed = parseTutorPack(
                 paste,
                 knownSurfacesFor(profile.languageId, stash),
+                profile.languageId,
               )
               if (parsed.error) {
                 setPreview(null)

@@ -133,7 +133,12 @@ export function BossChallenge({
             <Sparkles size={20} strokeWidth={2.25} aria-hidden />
             Expressions in play
           </p>
-          <SentenceFrame sentence={unit.targetSentence} gloss={unit.targetGloss} />
+          <SentenceFrame
+            sentence={unit.targetSentence}
+            parts={unit.sentenceParts}
+            gloss={unit.targetGloss}
+            dir={profile.languageId === 'ar' ? 'rtl' : undefined}
+          />
         </div>
         <PrimaryCta onClick={() => onClear(usedAny)}>All Clear!</PrimaryCta>
       </div>
@@ -203,7 +208,7 @@ export function BossChallenge({
           value={draft}
           disabled={busy}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={unit.targetSentence}
+          placeholder="…"
         />
       </label>
       <MicListen

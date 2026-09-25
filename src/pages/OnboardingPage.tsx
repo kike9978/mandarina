@@ -18,20 +18,21 @@ export function OnboardingPage() {
   const { completeOnboarding } = useAppState()
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('language')
-  const [languageId, setLanguageId] = useState<LanguageId>('id')
+  const [languageId, setLanguageId] = useState<LanguageId | null>(null)
   const [scriptFamiliarity, setScriptFamiliarity] =
     useState<ScriptFamiliarity>('new')
   const [goalId, setGoalId] = useState<GoalId>('daily')
   const [displayName, setDisplayName] = useState('Traveler')
 
-  const lang = LANGUAGES.find((l) => l.id === languageId)!
+  const lang = LANGUAGES.find((l) => l.id === languageId)
   const goal = GOALS.find((g) => g.id === goalId)!
-  const levels = scriptLevelsFor(lang)
-  const script = levels.find((s) => s.id === scriptFamiliarity)!
-  const ortho = orthographyLabel(lang)
-  const isLatin = lang.orthographyMode === 'latin-sounds'
+  const levels = lang ? scriptLevelsFor(lang) : []
+  const script = levels.find((s) => s.id === scriptFamiliarity)
+  const ortho = lang ? orthographyLabel(lang) : ''
+  const isLatin = lang?.orthographyMode === 'latin-sounds'
 
   function finish() {
+    if (!languageId) return
     completeOnboarding({
       displayName: displayName.trim() || 'Traveler',
       languageId,
@@ -54,10 +55,15 @@ export function OnboardingPage() {
               What language are we learning?
             </h1>
             <GuideBubble name="Mikan">
-              Pick any language you care about — including ones that use the{' '}
-              <strong>same Latin letters</strong> you already know (like
-              Indonesian). We won&apos;t force a foreign-script bootcamp unless
-              you need one.
+              Pick any language you care about. Latin-letter languages stay
+              phrase-first. A writing system you don&apos;t know yet gets a
+              short warm-up first.
+              {languageId === 'id' && (
+                <>
+                  {' '}
+                  Indonesian uses the Latin letters you already know.
+                </>
+              )}
             </GuideBubble>
             <div className="grid gap-2">
               {LANGUAGES.map((option) => (
@@ -86,11 +92,16 @@ export function OnboardingPage() {
                 </button>
               ))}
             </div>
-            <PrimaryCta onClick={() => setStep('script')}>Next</PrimaryCta>
+            <PrimaryCta
+              disabled={!languageId}
+              onClick={() => setStep('script')}
+            >
+              Next
+            </PrimaryCta>
           </>
         )}
 
-        {step === 'script' && (
+        {step === 'script' && lang && script && (
           <>
             <h1 className="text-[clamp(1.45rem,6vw,1.9rem)] leading-tight">
               {isLatin
@@ -146,13 +157,13 @@ export function OnboardingPage() {
           </>
         )}
 
-        {step === 'goal' && (
+        {step === 'goal' && lang && script && (
           <>
             <h1 className="text-[clamp(1.45rem,6vw,1.9rem)] leading-tight">
               What are you aiming for?
             </h1>
             <GuideBubble name={lang.guideName}>
-              This steers today&apos;s path — still no menus to micromanage.
+              We&apos;ll remember this. Today&apos;s lesson is the same first sentence either way.
             </GuideBubble>
             <label className="grid gap-1.5 text-[0.85rem] font-extrabold">
               <span>What should I call you?</span>
@@ -192,7 +203,7 @@ export function OnboardingPage() {
           </>
         )}
 
-        {step === 'ready' && (
+        {step === 'ready' && lang && script && (
           <>
             <h1 className="text-[clamp(1.45rem,6vw,1.9rem)] leading-tight">
               Ready for some thrilling interactive lessons?
@@ -200,20 +211,20 @@ export function OnboardingPage() {
             <GuideBubble name={lang.guideName}>
               {isLatin
                 ? scriptFamiliarity === 'comfortable'
-                  ? `Great — we'll lean into real ${lang.name} phrases right away. Sounds practice stays optional.`
-                  : `We'll keep ${lang.name} phrase-first, with a light ${lang.scriptTrackTitle.toLowerCase()} warm-up if you want it.`
+                  ? `Great — we'll lean into real ${lang!.name} phrases right away. Sounds practice stays optional.`
+                  : `We'll keep ${lang!.name} phrase-first, with a light ${lang!.scriptTrackTitle.toLowerCase()} warm-up if you want it.`
                 : scriptFamiliarity === 'new'
-                  ? `We'll begin with ${lang.scriptTrackTitle} so the marks feel friendly — then phrases.`
+                  ? `We'll begin with ${lang!.scriptTrackTitle} so the marks feel friendly — then phrases.`
                   : scriptFamiliarity === 'some'
-                    ? `We'll keep reinforcing ${lang.writingSystem.toLowerCase()} while we build useful phrases.`
-                    : `We'll still offer ${ortho.toLowerCase()} practice, but lean into real ${lang.name}.`}
+                    ? `We'll keep reinforcing ${lang!.writingSystem.toLowerCase()} while we build useful phrases.`
+                    : `We'll still offer ${ortho.toLowerCase()} practice, but lean into real ${lang!.name}.`}
             </GuideBubble>
             <div className="grid gap-2">
               {[
-                ['Language', `${lang.name} · ${lang.nativeLabel}`],
+                ['Language', `${lang!.name} · ${lang!.nativeLabel}`],
                 [
                   isLatin ? 'Reading' : 'Writing',
-                  `${lang.writingSystem} · ${script.title}`,
+                  `${lang!.writingSystem} · ${script!.title}`,
                 ],
                 ['Goal', goal.title],
               ].map(([label, value]) => (

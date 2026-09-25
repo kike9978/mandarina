@@ -1,4 +1,4 @@
-import { BookmarkPlus, Check, Volume2 } from 'lucide-react'
+import { Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type PhraseUnit } from '../data/fixtures'
@@ -14,6 +14,7 @@ import { BossChallenge } from '../components/BossChallenge'
 import { MicListen } from '../components/MicListen'
 import {
   HearText,
+  RubyText,
   SentenceFrame,
   SessionChrome,
   SoftFeedback,
@@ -39,7 +40,17 @@ function useItemKey() {
 }
 
 const spotChip =
-  'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-2xl border-[3px] border-ink bg-paper px-3.5 py-2 font-extrabold shadow-chunky-sm'
+  'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-2xl border-[3px] border-ink bg-paper px-3.5 py-2 font-extrabold shadow-chunky-sm leading-[1.8]'
+
+function chunkParts(unit: PhraseUnit, chunk: string) {
+  const spot = unit.spotChunks?.find(
+    (entry) => entry.parts.map((part) => part.text).join('') === chunk,
+  )
+  if (spot) return spot.parts
+  const item = unit.items.find((entry) => entry.surface === chunk)
+  if (item?.reading) return [{ text: item.surface, reading: item.reading }]
+  return [{ text: chunk }]
+}
 const iconRow =
   'inline-flex w-fit min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border-[2.5px] border-ink bg-paper px-3.5 py-2 font-extrabold disabled:cursor-not-allowed disabled:opacity-60'
 
@@ -51,7 +62,6 @@ export function SessionPage() {
     advanceFrom,
     momentum,
     sessionCleared,
-    addStash,
     activeUnit,
     sessionKind,
     sessionStarted,
@@ -93,21 +103,7 @@ export function SessionPage() {
           <ComebackIt onNext={() => advanceFrom('comeback')} />
         )}
         {currentActivity === 'spot' && (
-          <SpotIt
-            onNext={() => advanceFrom('spot')}
-            onStash={
-              sessionKind === 'stash'
-                ? undefined
-                : (item) =>
-                    addStash({
-                      surface: item.surface,
-                      gloss: item.gloss,
-                      reading: item.reading,
-                      exampleSentence: unit.targetSentence,
-                      source: 'user',
-                    })
-            }
-          />
+          <SpotIt onNext={() => advanceFrom('spot')} />
         )}
         {currentActivity === 'break' && (
           <BreakItDown onNext={() => advanceFrom('break')} />
@@ -129,16 +125,20 @@ export function SessionPage() {
               recordBossClear()
               advanceFrom('boss')
             }}
-            onSkip={() => advanceFrom('boss')}
+            onSkip={() => {
+              sessionStorage.setItem('mandarina-boss-skipped', '1')
+              void advanceFrom('boss')
+            }}
             onAttempt={(outcome, used) => {
               const focus = unit.items[0]
               if (!focus) return
               const prefix = sessionKind === 'stash' ? 'user' : 'phrase'
+              if (outcome === 'success' && !used) return
               logAttempt({
                 activityType: 'boss',
                 itemKey: `${prefix}:${focus.id}`,
                 facet: 'contextualUse',
-                outcome: used || outcome === 'success' ? 'success' : outcome,
+                outcome,
               })
             }}
           />
@@ -167,16 +167,22 @@ function ActivityShell({
 
 function ComebackIt({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
-  const { logAttempt } = useAppState()
+  const { logAttempt, profile } = useAppState()
   const items = unit.comebackItems ?? []
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
+  const [typed, setTyped] = useState('')
   const [failed, setFailed] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
 
   const current = items[Math.min(idx, Math.max(items.length - 1, 0))]
+  const produce =
+    current?.facet === 'production' ||
+    current?.facet === 'writing' ||
+    current?.facet === 'contextualUse'
+  const listening = current?.facet === 'listening'
   const options = useMemo(() => {
-    if (!current) return []
+    if (!current || produce) return []
     const decoys = ['tomorrow', 'friend', 'water', 'school', 'food'].filter(
       (g) => g.toLowerCase() !== current.gloss.toLowerCase(),
     )
@@ -185,7 +191,7 @@ function ComebackIt({ onNext }: { onNext: () => void }) {
       { id: 'd1', label: decoys[0] ?? 'not this', ok: false },
       { id: 'd2', label: decoys[1] ?? 'something else', ok: false },
     ].sort(() => Math.random() - 0.5)
-  }, [current])
+  }, [current, produce])
 
   useEffect(() => {
     if (items.length === 0) onNext()
@@ -210,47 +216,87 @@ function ComebackIt({ onNext }: { onNext: () => void }) {
     }
     setIdx((n) => n + 1)
     setPicked(null)
+    setTyped('')
     setFailed(false)
     setHintsUsed(0)
   }
 
+  const typedOk = samePhrase(typed, current.surface)
+  const prompt =
+    current.facet === 'listening'
+      ? 'Listen, then pick the meaning. The word stays hidden.'
+      : current.facet === 'writing'
+        ? 'Write the word for this meaning. An English tap does not count.'
+        : current.facet === 'production' || current.facet === 'contextualUse'
+          ? 'Type the word for this meaning.'
+          : 'What does this mean?'
+
   return (
     <ActivityShell eyebrow="Bring back">
       <GuideBubble name={useGuideName()}>
-        Quick warm-up — what does this mean? ({idx + 1} of {items.length})
+        {prompt} ({idx + 1} of {items.length})
       </GuideBubble>
-      <SentenceFrame
-        sentence={current.surface}
-        gloss={current.reading ? `Reading: ${current.reading}` : undefined}
-      />
-      <div className="grid gap-2">
-        {options.map((o) => (
-          <button
-            key={`${current.itemKey}-${o.id}-${o.label}`}
-            type="button"
-            className={`min-h-12 cursor-pointer rounded-2xl border-[3px] border-ink bg-paper px-3.5 py-3 text-left font-extrabold shadow-chunky ${
-              picked === o.id ? 'outline outline-3 outline-cyan' : ''
-            }`}
-            onClick={() => {
-              setPicked(o.id)
-              setFailed(!o.ok)
-              if (!o.ok) log('fail')
+      {produce ? (
+        <p className="text-center font-display text-2xl font-bold">{current.gloss}</p>
+      ) : listening ? (
+        <HearText
+          text={current.surface}
+          langHint={ttsLangFor(profile.languageId)}
+          label="Hear the word"
+        />
+      ) : (
+        <SentenceFrame
+          sentence={current.surface}
+          gloss={current.reading ? `Reading: ${current.reading}` : undefined}
+          dir={profile.languageId === 'ar' ? 'rtl' : undefined}
+        />
+      )}
+      {produce ? (
+        <label>
+          <span className="sr-only">Your word</span>
+          <textarea
+            className="w-full resize-y rounded-2xl border-[3px] border-ink bg-paper p-3.5 text-[1.15rem] font-bold"
+            rows={2}
+            value={typed}
+            onChange={(e) => {
+              setTyped(e.target.value)
+              setFailed(false)
             }}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-      {failed && picked && !options.find((o) => o.id === picked)?.ok && (
+            placeholder="…"
+          />
+        </label>
+      ) : (
+        <div className="grid gap-2">
+          {options.map((o) => (
+            <button
+              key={`${current.itemKey}-${o.id}-${o.label}`}
+              type="button"
+              className={`min-h-12 cursor-pointer rounded-2xl border-[3px] border-ink bg-paper px-3.5 py-3 text-left font-extrabold shadow-chunky ${
+                picked === o.id ? 'outline outline-3 outline-cyan' : ''
+              }`}
+              onClick={() => {
+                setPicked(o.id)
+                setFailed(!o.ok)
+                if (!o.ok) log('fail')
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {failed && (
         <SoftFeedback
-          hint="Think about when you last used this bit of language."
+          hint={
+            produce
+              ? 'Recall the form, not the English word.'
+              : 'Think about when you last used this bit of language.'
+          }
           answer={`${current.surface} = ${current.gloss}`}
-          onHint={() => {
-            setHintsUsed((n) => n + 1)
-            log('hint')
-          }}
+          onHint={() => setHintsUsed((n) => n + 1)}
           onRetry={() => {
             setPicked(null)
+            setTyped('')
             setFailed(false)
           }}
           onReveal={() => {
@@ -260,8 +306,18 @@ function ComebackIt({ onNext }: { onNext: () => void }) {
         />
       )}
       <PrimaryCta
-        disabled={!picked || !options.find((o) => o.id === picked)?.ok}
+        disabled={produce ? !typed.trim() || (failed && !typedOk) : !picked || !options.find((o) => o.id === picked)?.ok}
         onClick={() => {
+          if (produce) {
+            if (typedOk) {
+              log('success')
+              goNextItem()
+            } else {
+              setFailed(true)
+              log('fail')
+            }
+            return
+          }
           log('success')
           goNextItem()
         }}
@@ -274,9 +330,7 @@ function ComebackIt({ onNext }: { onNext: () => void }) {
 
 function MeetIt({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
-  const { profile, logAttempt } = useAppState()
-  const itemKey = useItemKey()
-  const focus = unit.items[0]
+  const { profile } = useAppState()
 
   return (
     <ActivityShell eyebrow="Meet It">
@@ -285,7 +339,9 @@ function MeetIt({ onNext }: { onNext: () => void }) {
       </GuideBubble>
       <SentenceFrame
         sentence={unit.targetSentence}
+        parts={unit.sentenceParts}
         gloss={unit.targetGloss}
+        dir={profile.languageId === 'ar' ? 'rtl' : undefined}
       />
       <button
         type="button"
@@ -298,127 +354,98 @@ function MeetIt({ onNext }: { onNext: () => void }) {
         <Volume2 strokeWidth={2.25} />
         Hear it
       </button>
-      <PrimaryCta
-        onClick={() => {
-          const key = itemKey(focus?.id)
-          if (key) {
-            logAttempt({
-              activityType: 'meet',
-              itemKey: key,
-              facet: 'listening',
-              outcome: 'success',
-            })
-          }
-          onNext()
-        }}
-      >
-        Got it — Spot It next
-      </PrimaryCta>
+      <PrimaryCta onClick={onNext}>Got it — Spot It next</PrimaryCta>
     </ActivityShell>
   )
 }
 
-function SpotIt({
-  onNext,
-  onStash,
-}: {
-  onNext: () => void
-  onStash?: (item: {
-    surface: string
-    gloss: string
-    reading?: string
-  }) => void | Promise<void>
-}) {
+function SpotIt({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
-  const { logAttempt } = useAppState()
+  const { logAttempt, profile } = useAppState()
   const itemKey = useItemKey()
-
-  const targets = unit.items.slice(0, 2)
+  const chunks =
+    unit.spotChunks ??
+    unit.items.map((item, index) => ({
+      id: item.id,
+      itemId: item.id,
+      target: index < 2,
+      parts: [{ text: item.surface, reading: item.reading }],
+    }))
+  const targets = chunks.filter((chunk) => chunk.target)
+  const rtl = profile.languageId === 'ar'
   const [found, setFound] = useState<string[]>([])
-  const [focusId, setFocusId] = useState<string | null>(null)
-  const [stashFlash, setStashFlash] = useState<string | null>(null)
-  const [stashing, setStashing] = useState(false)
+  const [missed, setMissed] = useState(false)
 
-  const focus =
-    targets.find((t) => t.id === focusId) ??
-    targets.find((t) => t.id === found[found.length - 1]) ??
-    targets[0]
+  const ready =
+    targets.length > 0 &&
+    targets.every((chunk) => found.includes(chunk.id)) &&
+    !missed
 
   return (
     <ActivityShell eyebrow="Spot It">
       <GuideBubble name={useGuideName()}>
         Tap the pieces that mean <strong>{unit.spotGlossA}</strong> and{' '}
-        <strong>{unit.spotGlossB}</strong>.
+        <strong>{unit.spotGlossB}</strong>. One piece is not either of those.
       </GuideBubble>
-      <SentenceFrame sentence={unit.targetSentence} />
-      <div className="flex flex-wrap gap-2">
-        {targets.map((t) => {
-          const active = found.includes(t.id)
-          const selected = focus?.id === t.id
+      <div
+        className="flex flex-wrap items-end justify-center gap-2 rounded-[22px] border-4 border-orange bg-paper px-[18px] py-5 shadow-chunky"
+        dir={rtl ? 'rtl' : undefined}
+        lang={rtl ? 'ar' : undefined}
+      >
+        {chunks.map((chunk) => {
+          const active = found.includes(chunk.id)
+          const wrong = missed && !chunk.target
           return (
             <button
-              key={t.id}
+              key={chunk.id}
               type="button"
-              className={`${spotChip}${active ? ' bg-cyan' : ''}${
-                selected ? ' outline outline-3 outline-ink' : ''
+              className={`${spotChip} leading-[1.8]${active ? ' bg-cyan' : ''}${
+                wrong ? ' bg-soft-error' : ''
               }`}
               onClick={() => {
-                setFocusId(t.id)
+                if (!chunk.target) {
+                  setMissed(true)
+                  const key = itemKey(chunk.itemId)
+                  if (key) {
+                    logAttempt({
+                      activityType: 'spot',
+                      itemKey: key,
+                      facet: 'recognition',
+                      outcome: 'fail',
+                    })
+                  }
+                  return
+                }
                 setFound((prev) =>
-                  prev.includes(t.id) ? prev : [...prev, t.id],
+                  prev.includes(chunk.id) ? prev : [...prev, chunk.id],
                 )
               }}
             >
-              {t.surface}
+              <RubyText parts={chunk.parts} dir={rtl ? 'rtl' : undefined} />
               {active && <Check size={16} strokeWidth={2.5} aria-hidden />}
             </button>
           )
         })}
       </div>
-      {found.length > 0 && onStash && focus && (
-        <button
-          type="button"
-          disabled={stashing}
-          className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full border-[2.5px] border-ink bg-grid px-3 py-2 font-extrabold disabled:opacity-60"
-          onClick={() => {
-            setStashing(true)
-            void Promise.resolve(
-              onStash({
-                surface: focus.surface,
-                gloss: focus.gloss,
-                reading: focus.reading,
-              }),
-            )
-              .then(() => {
-                setStashFlash(focus.surface)
-                window.setTimeout(() => setStashFlash(null), 2200)
-              })
-              .catch(() => {
-                setStashFlash('Couldn’t save — try again')
-                window.setTimeout(() => setStashFlash(null), 2200)
-              })
-              .finally(() => setStashing(false))
+      {missed && (
+        <SoftFeedback
+          hint="Stay inside the sentence. The extra piece is there on purpose."
+          answer={`${unit.spotGlossA} and ${unit.spotGlossB}`}
+          onRetry={() => {
+            setMissed(false)
+            setFound([])
           }}
-        >
-          <BookmarkPlus size={16} strokeWidth={2.25} aria-hidden />
-          Stash “{focus.surface}”
-        </button>
-      )}
-      {stashFlash && (
-        <p
-          className="animate-pop-in rounded-xl border-2 border-ink bg-[#e8fff4] px-3 py-2 font-extrabold"
-          role="status"
-        >
-          {stashFlash.startsWith('Couldn’t')
-            ? stashFlash
-            : `Stashed “${stashFlash}” — open Stash anytime to practice it.`}
-        </p>
+          onReveal={() => {
+            setMissed(false)
+            setFound([])
+          }}
+        />
       )}
       <PrimaryCta
-        disabled={found.length < 2}
+        disabled={!ready}
         onClick={() => {
-          for (const t of targets) {
-            const key = itemKey(t.id)
+          for (const chunk of targets) {
+            const key = itemKey(chunk.itemId)
             if (!key) continue
             logAttempt({
               activityType: 'spot',
@@ -430,7 +457,7 @@ function SpotIt({
           onNext()
         }}
       >
-        Nice — now let&apos;s make sure you can find them again
+        Your Turn
       </PrimaryCta>
     </ActivityShell>
   )
@@ -452,12 +479,31 @@ function BreakItDown({ onNext }: { onNext: () => void }) {
             key={item.id}
             className="grid gap-1.5 rounded-2xl border-[2.5px] border-ink bg-paper p-3"
           >
-            <strong>{item.surface}</strong>
-            {item.reading && (
-              <em className="font-bold not-italic text-ink-soft">
-                {item.reading}
-              </em>
-            )}
+            <strong>
+              <RubyText
+                parts={[
+                  {
+                    text: item.surface,
+                    reading:
+                      (profile.languageId === 'ja' ||
+                        profile.languageId === 'zh') &&
+                      item.reading &&
+                      item.reading !== item.surface
+                        ? item.reading
+                        : undefined,
+                  },
+                ]}
+                dir={profile.languageId === 'ar' ? 'rtl' : undefined}
+              />
+            </strong>
+            {item.reading &&
+              profile.languageId !== 'ar' &&
+              profile.languageId !== 'ja' &&
+              profile.languageId !== 'zh' && (
+                <em className="font-bold not-italic text-ink-soft">
+                  {item.reading}
+                </em>
+              )}
             <span className="font-bold">{item.gloss}</span>
             <HearText
               text={item.surface}
@@ -476,7 +522,9 @@ function YourTurn({ onNext }: { onNext: () => void }) {
   const unit = useActiveUnit()
   const { logAttempt } = useAppState()
   const itemKey = useItemKey()
-  const focusId = unit.items[0]?.id
+  const focusId = unit.items.find(
+    (item) => item.surface === unit.turnPromptSurface,
+  )?.id
 
   const [picked, setPicked] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -499,7 +547,11 @@ function YourTurn({ onNext }: { onNext: () => void }) {
   return (
     <ActivityShell eyebrow="Your Turn">
       <GuideBubble name={useGuideName()}>
-        What does <strong>{unit.turnPromptSurface}</strong> mean?
+        What does{' '}
+        <strong>
+          <RubyText parts={chunkParts(unit, unit.turnPromptSurface)} />
+        </strong>{' '}
+        mean?
       </GuideBubble>
       <div className="grid gap-2">
         {options.map((o) => (
@@ -525,7 +577,6 @@ function YourTurn({ onNext }: { onNext: () => void }) {
           answer={`${unit.turnPromptSurface} = ${answer?.label ?? ''}`}
           onHint={() => {
             setHintsUsed((n) => n + 1)
-            log('hint')
           }}
           onRetry={() => {
             setPicked(null)
@@ -561,6 +612,7 @@ function BuildIt({ onNext }: { onNext: () => void }) {
   )
   const [built, setBuilt] = useState<string[]>([])
   const [failed, setFailed] = useState(false)
+  const [passed, setPassed] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
   const assembled = built.join(' ')
   const done =
@@ -569,15 +621,18 @@ function BuildIt({ onNext }: { onNext: () => void }) {
   const allPlaced = built.length === unit.buildChunks.length
 
   const log = (outcome: 'success' | 'fail' | 'hint' | 'reveal') => {
-    const key = itemKey(focusId)
-    if (!key) return
-    logAttempt({
-      activityType: 'build',
-      itemKey: key,
-      facet: 'production',
-      outcome,
-      hintsUsed,
-    })
+    const ids = unit.items.map((item) => item.id)
+    const keys = ids.map((id) => itemKey(id)).filter((key): key is string => Boolean(key))
+    const graded = keys.length > 0 ? keys : [itemKey(focusId)].filter((key): key is string => Boolean(key))
+    for (const key of graded) {
+      logAttempt({
+        activityType: 'build',
+        itemKey: key,
+        facet: 'production',
+        outcome,
+        hintsUsed,
+      })
+    }
   }
 
   const moveToBuilt = (chunk: string) => {
@@ -609,7 +664,7 @@ function BuildIt({ onNext }: { onNext: () => void }) {
                 setFailed(false)
               }}
             >
-              {c}
+              <RubyText parts={chunkParts(unit, c)} />
             </button>
           ))
         )}
@@ -623,18 +678,21 @@ function BuildIt({ onNext }: { onNext: () => void }) {
               className={spotChip}
               onClick={() => moveToBuilt(c)}
             >
-              {c}
+              <RubyText parts={chunkParts(unit, c)} />
             </button>
           ))}
         </div>
       )}
-      {allPlaced && !done && !failed && (
+      {allPlaced && !passed && !failed && (
         <button
           type="button"
           className="inline-flex w-fit cursor-pointer items-center rounded-full border-[2.5px] border-ink bg-cyan px-3 py-2 font-extrabold"
           onClick={() => {
-            setFailed(true)
-            log('fail')
+            if (done) setPassed(true)
+            else {
+              setFailed(true)
+              log('fail')
+            }
           }}
         >
           Check
@@ -646,7 +704,6 @@ function BuildIt({ onNext }: { onNext: () => void }) {
           answer={unit.targetSentence}
           onHint={() => {
             setHintsUsed((n) => n + 1)
-            log('hint')
           }}
           onRetry={() => {
             setBuilt([])
@@ -659,7 +716,7 @@ function BuildIt({ onNext }: { onNext: () => void }) {
           }}
         />
       )}
-      {done ? (
+      {passed ? (
         <PrimaryCta
           onClick={() => {
             log('success')
@@ -671,7 +728,7 @@ function BuildIt({ onNext }: { onNext: () => void }) {
       ) : (
         <p className="text-center text-sm font-bold text-ink-soft">
           {allPlaced
-            ? 'Not quite — tap Check, or tap a piece to move it back.'
+            ? 'Tap Check when the line is in order.'
             : 'Tap each piece to add it. Tap again in the box to undo.'}
         </p>
       )}
@@ -734,7 +791,6 @@ function SayIt({ onNext }: { onNext: () => void }) {
           answer={unit.targetSentence}
           onHint={() => {
             setHintsUsed((n) => n + 1)
-            log('hint')
           }}
           onRetry={() => setFailed(false)}
           onReveal={() => {

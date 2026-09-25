@@ -201,6 +201,16 @@
   .outline-ink-soft {
     @apply border-[2.5px] border-ink;
   }
+
+  ruby {
+    ruby-position: over;
+  }
+
+  rt {
+    font-size: 0.45em;
+    font-weight: 700;
+    line-height: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

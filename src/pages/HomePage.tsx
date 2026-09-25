@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getPhraseUnit, hasPhraseUnit, HOME_SOFT } from '../data/fixtures'
+import { getPhraseUnit, hasPhraseUnit, HOME_SOFT, phrasePathOpen } from '../data/fixtures'
 import { languageById, orthographyLabel } from '../data/languages'
 import { decideDailyPlan } from '../learning/orchestrator'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -40,11 +40,14 @@ export function HomePage() {
   const focusAbility = abilities.find((a) => a.id === 'talk-today')
   const scriptAbility = abilities.find((a) => a.id === 'script-basics')
   const isLatin = lang.orthographyMode === 'latin-sounds'
-  const phraseReady =
-    hasPhraseUnit(profile.languageId) &&
-    (isLatin || profile.scriptFamiliarity !== 'new')
   const scriptDone =
     scriptCleared || scriptAbility?.status === 'done'
+  const phraseReady = phrasePathOpen(
+    profile.languageId,
+    profile.scriptFamiliarity,
+    scriptDone,
+  )
+  const lessonCleared = focusAbility?.status === 'done'
   const ortho = orthographyLabel(lang)
   const canResume =
     sessionStarted && !!activeUnit && !sessionCleared
@@ -64,6 +67,7 @@ export function HomePage() {
         writingDue: writingDueCount,
         bossReady,
         writingNoun: isLatin ? 'spellings' : 'characters',
+        lessonCleared,
       }),
     [
       needsScriptFirst,
@@ -75,6 +79,7 @@ export function HomePage() {
       stash.length,
       lastActiveAt,
       bossReady,
+      lessonCleared,
     ],
   )
 
@@ -106,9 +111,7 @@ export function HomePage() {
           <p className="font-display text-[1.55rem] font-semibold sm:text-[1.7rem]">
             Good day, {profile.displayName}
           </p>
-          <p className="font-bold text-ink-soft">
-            {lang.name} · {profile.journeyDay} day journey
-          </p>
+          <p className="font-bold text-ink-soft">{lang.name}</p>
         </header>
 
         {phraseReady && unit && plan.kind !== 'script' && (
@@ -122,7 +125,9 @@ export function HomePage() {
             <p className="leading-snug font-bold">
               {canResume
                 ? 'You left mid-path — pick up right where you paused.'
-                : plan.kind === 'welcome_back' || plan.kind === 'comeback'
+                : plan.kind === 'welcome_back' ||
+                    plan.kind === 'comeback' ||
+                    plan.kind === 'parked'
                   ? plan.body
                   : unit.focusWhy}
             </p>
@@ -136,11 +141,13 @@ export function HomePage() {
             <GuideBubble name={guideName}>
               {canResume
                 ? 'No restart needed — your path is waiting.'
-                : plan.kind === 'welcome_back'
-                  ? plan.offerBoss
-                    ? 'Missed you — a gentle path, or jump into a tiny scene.'
-                    : 'Missed you — we’ll keep it gentle today.'
-                  : `You're learning to say what you're doing today in ${lang.name}. Ready when you are!`}
+                : plan.kind === 'parked'
+                  ? 'Nothing new is waiting. Practice the sentence again, or come back when a review is due.'
+                  : plan.kind === 'welcome_back'
+                    ? plan.offerBoss
+                      ? 'Missed you — a gentle path, or jump into a tiny scene.'
+                      : 'Missed you — we’ll keep it gentle today.'
+                    : `You're learning to say what you're doing today in ${lang.name}. Ready when you are!`}
             </GuideBubble>
             <PrimaryCta onClick={launchPlan}>
               {canResume ? 'Resume' : plan.ctaLabel}
@@ -303,6 +310,15 @@ export function HomePage() {
               </Link>
             </li>
           )}
+          <li>
+            <Link
+              to="/journal"
+              className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
+            >
+              <Pencil size={18} strokeWidth={2.25} aria-hidden />
+              <span>Journal words</span>
+            </Link>
+          </li>
           <li>
             <Link
               to="/stash"

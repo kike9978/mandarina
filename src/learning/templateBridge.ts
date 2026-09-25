@@ -14,17 +14,9 @@ const GLOSS_DECOYS = [
 
 const MAX_STASH_PRACTICE = 3
 
-/** Soft type-in hint from the target sentence, language-agnostic. */
-export function sentencePlaceholder(sentence: string): string {
-  const trimmed = sentence.trim()
-  if (!trimmed) return '…'
-  const words = trimmed.split(/\s+/).filter(Boolean)
-  if (words.length >= 2) {
-    return `${words[0]} ${words[1]}…`
-  }
-  const stem = trimmed.replace(/[。．.!?？]+$/u, '')
-  const take = Math.min(3, stem.length)
-  return `${stem.slice(0, take)}…`
+/** Empty prompt. The box must not contain the sentence’s opening tokens. */
+export function sentencePlaceholder(_sentence: string): string {
+  return '…'
 }
 
 /** Compare learner text to a target, ignoring space and end punctuation. */

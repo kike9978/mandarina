@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PLAYABLE_ABILITY_IDS } from '../data/fixtures'
 import { languageById } from '../data/languages'
 import { db } from '../db/mandarinaDb'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -21,9 +22,12 @@ export function ProgressPage() {
   ]
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
-  const level = abilities.filter((a) => a.status === 'done').length + 1
-  const scriptAbilities = abilities.filter((a) => a.kind === 'script')
-  const speakAbilities = abilities.filter((a) => a.kind !== 'script')
+  const playable = abilities.filter((a) =>
+    (PLAYABLE_ABILITY_IDS as readonly string[]).includes(a.id),
+  )
+  const cleared = playable.filter((a) => a.status === 'done').length
+  const scriptAbilities = playable.filter((a) => a.kind === 'script')
+  const speakAbilities = playable.filter((a) => a.kind !== 'script')
   const [stats, setStats] = useState<JourneyStats>({
     sessionsDone: 0,
     attempts: 0,
@@ -67,7 +71,7 @@ export function ProgressPage() {
           Progress
         </p>
         <h1>
-          {lang.name} · Level {level}
+          {lang.name} · {cleared} lesson{cleared === 1 ? '' : 's'} cleared
         </h1>
         <p className="leading-snug font-bold text-ink-soft">You can now…</p>
         <GuideBubble name={guideName}>
@@ -79,7 +83,7 @@ export function ProgressPage() {
           className="animate-pop-in relative h-[140px] overflow-hidden rounded-[22px] border-[3px] border-ink bg-[rgba(20,24,60,0.88)] shadow-chunky"
           aria-hidden
         >
-          {abilities.map((a, i) => (
+          {playable.map((a, i) => (
             <span
               key={a.id}
               className={`absolute size-2.5 rounded-full ${

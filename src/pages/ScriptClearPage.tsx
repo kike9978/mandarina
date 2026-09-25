@@ -10,10 +10,7 @@ export function ScriptClearPage() {
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
   const today = new Date().toLocaleDateString()
-  const canPhrase =
-    hasPhraseUnit(profile.languageId) &&
-    (lang.orthographyMode === 'latin-sounds' ||
-      profile.scriptFamiliarity !== 'new')
+  const canPhrase = hasPhraseUnit(profile.languageId)
   const ortho = orthographyLabel(lang)
 
   return (

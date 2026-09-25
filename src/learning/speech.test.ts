@@ -24,14 +24,13 @@ describe('mock listen helpers', () => {
     expect(parts[0]?.length).toBeLessThan(parts.at(-1)!.length)
   })
 
-  it('plays partials then returns the target', async () => {
+  it('does not type the target', async () => {
     const seen: string[] = []
     const heard = await runMockListen('元気ですか？', (t) => seen.push(t), {
       delayMs: 0,
     })
-    expect(heard).toBe('元気ですか？')
-    expect(seen.at(-1)).toBe('元気ですか？')
-    expect(seen.length).toBeGreaterThan(0)
+    expect(heard).toBe('')
+    expect(seen.join('')).not.toContain('元気')
   })
 
   it('reports mock capability without a SpeechRecognition ctor', () => {

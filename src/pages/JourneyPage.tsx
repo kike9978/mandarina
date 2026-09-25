@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { getPhraseUnit } from '../data/fixtures'
+import { hasWritingChart } from '../data/writingCharts'
 import { languageById, orthographyLabel } from '../data/languages'
 import { useAppState, useGuideName } from '../state/AppState'
 import { GuideBubble, PrimaryCta } from '../components/ui'
@@ -113,6 +114,15 @@ export function JourneyPage() {
                 : undefined
             }
           />
+          {hasWritingChart(profile.languageId) && (
+            <button
+              type="button"
+              className="mt-2 min-h-12 w-full rounded-2xl border-[3px] border-ink bg-paper px-4 font-extrabold shadow-chunky"
+              onClick={() => navigate('/chart')}
+            >
+              Open the writing chart
+            </button>
+          )}
           {(needsScriptFirst || isLatin) && !scriptDone && (
             <button
               type="button"

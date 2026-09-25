@@ -1,6 +1,7 @@
 import { Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { hasWritingChart } from '../data/writingCharts'
 import { SCRIPT_GLYPHS, languageById } from '../data/languages'
 import { speakText, ttsLangFor } from '../learning/tts'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -57,8 +58,17 @@ export function ScriptSessionPage() {
         onBack={() => navigate('/')}
       />
       <div className="page-pad pt-2">
-        <p className="text-sm font-extrabold text-ink-soft">
-          {lang.scriptTrackTitle}
+        <p className="flex flex-wrap items-center gap-2 text-sm font-extrabold text-ink-soft">
+          <span>{lang.scriptTrackTitle}</span>
+          {hasWritingChart(profile.languageId) && (
+            <button
+              type="button"
+              className="min-h-11 rounded-full border-[2.5px] border-ink bg-paper px-3 text-ink"
+              onClick={() => navigate('/chart')}
+            >
+              Open the chart
+            </button>
+          )}
         </p>
         {currentScriptActivity === 'see' && (
           <SeeIt
@@ -182,7 +192,6 @@ function SeeIt({
 function HearIt({
   glyph,
   reading,
-  glyphId,
   languageId,
   guideName,
   onNext,
@@ -194,8 +203,6 @@ function HearIt({
   guideName: string
   onNext: () => void
 }) {
-  const { logAttempt } = useAppState()
-
   return (
     <Shell eyebrow="Hear It">
       <GuideBubble name={guideName}>
@@ -206,24 +213,12 @@ function HearIt({
         type="button"
         className="inline-flex w-fit min-h-11 items-center gap-2 rounded-full border-[2.5px] border-ink bg-paper px-3.5 py-2 font-extrabold"
         aria-label={`Play sound for ${reading}`}
-        onClick={() => speakText(reading, ttsLangFor(languageId))}
+        onClick={() => speakText(glyph, ttsLangFor(languageId))}
       >
         <Volume2 strokeWidth={2.25} />
-        Play “{reading}”
+        Play the mark
       </button>
-      <PrimaryCta
-        onClick={() => {
-          logAttempt({
-            activityType: 'hear',
-            itemKey: `script:${glyphId}`,
-            facet: 'listening',
-            outcome: 'success',
-          })
-          onNext()
-        }}
-      >
-        Spot It among friends
-      </PrimaryCta>
+      <PrimaryCta onClick={onNext}>Spot It among friends</PrimaryCta>
     </Shell>
   )
 }
@@ -263,7 +258,7 @@ function SpotGlyph({
   return (
     <Shell eyebrow="Spot It">
       <GuideBubble name={guideName}>
-        Find <strong>{target.glyph}</strong> in the lineup.
+        Find the mark you just met. It is one of these.
       </GuideBubble>
       <div className="grid grid-cols-2 gap-2">
         {options.map((g) => (
@@ -293,7 +288,6 @@ function SpotGlyph({
           answer={`The one we want is ${target.glyph}`}
           onHint={() => {
             setHintsUsed((n) => n + 1)
-            log('hint')
           }}
           onRetry={() => {
             setPicked(null)
@@ -383,7 +377,6 @@ function MatchGlyph({
           answer={`${glyph} → ${reading}`}
           onHint={() => {
             setHintsUsed((n) => n + 1)
-            log('hint')
           }}
           onRetry={() => {
             setPicked(null)
@@ -469,12 +462,6 @@ function TraceIt({
       })
       return
     }
-    logAttempt({
-      activityType: 'trace',
-      itemKey: `script:${glyphId}`,
-      facet: 'writing',
-      outcome: 'success',
-    })
     if (stage === 'trace') setStage('copy')
     else if (stage === 'copy') setStage('recall')
     else onNext()
@@ -520,7 +507,6 @@ function TraceIt({
 function UseIt({
   glyph,
   reading,
-  glyphId,
   usePhrase,
   useGloss,
   guideName,
@@ -534,7 +520,6 @@ function UseIt({
   guideName: string
   onNext: () => void
 }) {
-  const { logAttempt } = useAppState()
   const highlighted = usePhrase
     ? highlightGlyph(usePhrase, glyph)
     : null
@@ -559,17 +544,7 @@ function UseIt({
             : `shows up when you need “${reading}”`}
         </p>
       </div>
-      <PrimaryCta
-        onClick={() => {
-          logAttempt({
-            activityType: 'use',
-            itemKey: `script:${glyphId}`,
-            facet: 'contextualUse',
-            outcome: 'success',
-          })
-          onNext()
-        }}
-      >
+      <PrimaryCta onClick={onNext}>
         All Clear — writing warm-up done
       </PrimaryCta>
     </Shell>

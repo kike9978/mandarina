@@ -1,0 +1,27 @@
+---
+description: Run this project with Bun, not npm, npx, pnpm, or yarn
+alwaysApply: true
+---
+
+# Use Bun
+
+This repo is a Bun project (`bun.lock`). Install, run, and execute package binaries with Bun.
+
+```bash
+# ✅
+bun install
+bun run dev
+bun run test
+bun run build
+bunx tsc -b --pretty false
+
+# ❌
+npm install
+npx vitest
+pnpm test
+yarn dev
+```
+
+- Use `bun run <script>` for scripts in `package.json`.
+- Use `bunx <pkg>` when a binary is not a script.
+- Do not add `package-lock.json` or change the package manager.

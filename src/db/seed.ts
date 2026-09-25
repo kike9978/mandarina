@@ -24,9 +24,44 @@ function cardRow(itemId: string, facet: Facet): DbFsrsCard {
   }
 }
 
+/** Keep shipped phrase rows in sync when a language gains a first lesson. */
+async function upsertPhraseItems(): Promise<void> {
+  const items: DbItem[] = []
+  const cards: DbFsrsCard[] = []
+  for (const lang of LANGUAGES) {
+    const unit = PHRASE_UNITS[lang.id as LanguageId]
+    for (const it of unit.items) {
+      const id = `${lang.id}:phrase:${it.id}`
+      items.push({
+        id,
+        languageId: lang.id,
+        unitId: unit.id,
+        surface: it.surface,
+        reading: it.reading,
+        gloss: it.gloss,
+        type: 'word',
+        source: 'seed',
+        exampleSentence: unit.targetSentence,
+        abilityId: unit.abilityId,
+      })
+      const existing = await db.fsrsCards.get(`${id}:recognition`)
+      if (!existing) {
+        for (const facet of FACETS) cards.push(cardRow(id, facet))
+      }
+    }
+  }
+  await db.transaction('rw', db.items, db.fsrsCards, async () => {
+    await db.items.bulkPut(items)
+    if (cards.length) await db.fsrsCards.bulkPut(cards)
+  })
+}
+
 export async function ensureSeeded(): Promise<void> {
   const flag = await db.settings.get('seeded-v1')
-  if (flag?.value === '1') return
+  if (flag?.value === '1') {
+    await upsertPhraseItems()
+    return
+  }
 
   const items: DbItem[] = []
   const cards: DbFsrsCard[] = []

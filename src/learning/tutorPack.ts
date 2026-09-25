@@ -1,3 +1,5 @@
+import { acceptsImportedWord } from './readingAid'
+
 export interface TutorPackRow {
   surface: string
   gloss: string
@@ -144,6 +146,7 @@ function phrasesTweaksAndSources(value: unknown): {
 export function parseTutorPack(
   raw: string,
   existingSurfaces: string[] = [],
+  languageId?: string,
 ): ParseTutorPackResult {
   const known = new Set(existingSurfaces.map((s) => s.replace(/\s/g, '').toLowerCase()))
   const extracted = extractJsonValue(raw)
@@ -170,7 +173,7 @@ export function parseTutorPack(
 
   for (const item of arr) {
     const row = asRow(item)
-    if (!row) {
+    if (!row || (languageId && !acceptsImportedWord(languageId, row.surface, row.reading))) {
       dropped += 1
       continue
     }
@@ -204,6 +207,7 @@ export function parseTutorPack(
 export function parsePackOrTsv(
   raw: string,
   existingSurfaces: string[] = [],
+  languageId?: string,
 ): ParseTutorPackResult {
   const trimmed = raw.trim()
   if (!trimmed) {
@@ -227,7 +231,7 @@ export function parsePackOrTsv(
       const [surface, gloss, exampleSentence, reading] = line
         .split('\t')
         .map((c) => c.trim())
-      if (!surface || !gloss) {
+      if (!surface || !gloss || (languageId && !acceptsImportedWord(languageId, surface, reading))) {
         if (line.trim()) dropped += 1
         continue
       }
@@ -259,7 +263,7 @@ export function parsePackOrTsv(
     }
     return { rows, noteTweaks: [], sourceItems: [], skippedDuplicate, dropped }
   }
-  return parseTutorPack(raw, existingSurfaces)
+  return parseTutorPack(raw, existingSurfaces, languageId)
 }
 
 export interface TutorBriefInput {
@@ -361,17 +365,32 @@ noteTweaks are optional style/topic rules only. Do not rewrite the learner snaps
 Cap 3–8 phrases and 1 listen.`
 }
 
+const READING_AID_RULE =
+  ' Japanese kanji need furigana, each Chinese character needs its own pinyin syllable, and beginner Arabic needs vowel marks on the letters. A word without that aid is dropped and is not shown.'
+
 function briefAsk(input: TutorBriefInput): string {
   if (input.scriptWarmupNeeded && !input.latinSounds) {
-    return 'They still need writing comfort. Propose 3–6 tiny bits (marks or short words) with reading, a hint, and a tiny example — not a dense paragraph.'
+    return (
+      'They still need writing comfort. Propose 3–6 tiny bits (marks or short words) with reading, a hint, and a tiny example — not a dense paragraph.' +
+      READING_AID_RULE
+    )
   }
   if (!input.phraseReady) {
-    return 'They do not have a starter phrase cluster yet. Propose the first useful 3–8 phrases for their goal — this pack is the curriculum. Prefer a full example sentence for each.'
+    return (
+      'They do not have a starter phrase cluster yet. Propose the first useful 3–8 phrases for their goal — this pack is the curriculum. Prefer a full example sentence for each.' +
+      READING_AID_RULE
+    )
   }
   if (input.scriptWarmupNeeded && input.latinSounds) {
-    return 'Propose 3–8 short phrases first. Light spelling notes only if a sound is new. Reuse pieces they already know and add one neighbor move. Prefer a full example sentence for each.'
+    return (
+      'Propose 3–8 short phrases first. Light spelling notes only if a sound is new. Reuse pieces they already know and add one neighbor move. Prefer a full example sentence for each.' +
+      READING_AID_RULE
+    )
   }
-  return 'Propose 3–8 short phrases. Reuse pieces they already know and add one neighbor move. Prefer a full example sentence for each.'
+  return (
+    'Propose 3–8 short phrases. Reuse pieces they already know and add one neighbor move. Prefer a full example sentence for each.' +
+    READING_AID_RULE
+  )
 }
 
 export const FORBIDDEN_BRIEF_WORDS = ['fsrs', 'srs', 'due cards', 'stability', 'interval']

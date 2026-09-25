@@ -1,6 +1,8 @@
 import { ArrowLeft, CircleHelp, Lightbulb, Pause, Volume2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { readingSpans, splitAnnotatedLine } from '../learning/readingAid'
+import { annotateReading } from '../learning/ruby'
 import { speakText } from '../learning/tts'
 
 export function SessionChrome({
@@ -148,17 +150,70 @@ export function HearText({
   )
 }
 
+export function RubyText({
+  parts,
+  dir,
+}: {
+  parts: { text: string; reading?: string }[]
+  dir?: 'ltr' | 'rtl'
+}) {
+  const spans = parts.flatMap((part) => annotateReading(part.text, part.reading))
+  return (
+    <span dir={dir} lang={dir === 'rtl' ? 'ar' : undefined}>
+      {spans.map((part, index) =>
+        part.reading ? (
+          <ruby key={`${part.text}-${index}`}>
+            {part.text}
+            <rt>{part.reading}</rt>
+          </ruby>
+        ) : (
+          <span key={`${part.text}-${index}`}>{part.text}</span>
+        ),
+      )}
+    </span>
+  )
+}
+
+export function AidedText({
+  languageId,
+  text,
+  reading,
+}: {
+  languageId: string
+  text: string
+  reading?: string
+}) {
+  const line = splitAnnotatedLine(text)
+  const spans = readingSpans(languageId, line.text, reading ?? line.reading)
+  if (!spans) return null
+  return (
+    <RubyText parts={spans} dir={languageId === 'ar' ? 'rtl' : undefined} />
+  )
+}
+
 export function SentenceFrame({
   sentence,
+  parts,
   gloss,
+  dir,
 }: {
   sentence: string
+  parts?: { text: string; reading?: string }[]
   gloss?: string
+  dir?: 'ltr' | 'rtl'
 }) {
   return (
     <figure className="animate-pop-in m-0 rounded-[22px] border-4 border-orange bg-paper px-[18px] py-5 text-center shadow-chunky">
-      <p className="text-[clamp(1.4rem,6vw,1.85rem)] leading-normal font-extrabold">
-        {sentence}
+      <p
+        className="text-[clamp(1.4rem,6vw,1.85rem)] leading-[1.8] font-extrabold"
+        dir={dir}
+        lang={dir === 'rtl' ? 'ar' : undefined}
+      >
+        {parts && parts.length > 0 ? (
+          <RubyText parts={parts} dir={dir} />
+        ) : (
+          sentence
+        )}
       </p>
       {gloss && (
         <figcaption className="mt-2.5 font-bold text-ink-soft">{gloss}</figcaption>

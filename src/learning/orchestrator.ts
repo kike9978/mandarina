@@ -7,7 +7,13 @@ import type {
 } from '../data/fixtures'
 import type { DueFacetRow } from './fsrsAdapter'
 
-export type PlanKind = 'script' | 'journey' | 'comeback' | 'welcome_back' | 'stash'
+export type PlanKind =
+  | 'script'
+  | 'journey'
+  | 'comeback'
+  | 'welcome_back'
+  | 'stash'
+  | 'parked'
 
 export interface DailyPlan {
   kind: PlanKind
@@ -38,6 +44,8 @@ export function decideDailyPlan(input: {
   writingDue?: number
   bossReady?: boolean
   writingNoun?: string
+  /** The only shipped phrase unit is already cleared. */
+  lessonCleared?: boolean
 }): DailyPlan {
   const now = input.now ?? new Date()
   const absent =
@@ -90,8 +98,12 @@ export function decideDailyPlan(input: {
     return withExtras({
       kind: 'comeback',
       route: '/session',
-      headline: 'Continue your lesson',
-      body: 'We’ll weave a couple of comebacks into today’s path.',
+      headline: input.lessonCleared
+        ? 'Bring a few things back'
+        : 'Continue your lesson',
+      body: input.lessonCleared
+        ? 'A few familiar bits are ready. We’ll start with those.'
+        : 'We’ll weave a couple of comebacks into today’s path.',
       ctaLabel: 'Start',
       softComeback: `Let’s bring a few things back · ${n}`,
     })
@@ -104,6 +116,16 @@ export function decideDailyPlan(input: {
       headline: 'Your phrases are waiting',
       body: `You stashed ${input.stashCount} — lock a few in when you’re ready.`,
       ctaLabel: 'Open stash',
+    })
+  }
+
+  if (input.lessonCleared && input.phraseReady) {
+    return withExtras({
+      kind: 'parked',
+      route: '/session',
+      headline: 'This is the lesson we have',
+      body: 'The first sentence is cleared. Nothing is due.',
+      ctaLabel: 'Practice it again',
     })
   }
 

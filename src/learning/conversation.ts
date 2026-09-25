@@ -1,4 +1,5 @@
 import type { PhraseUnit } from '../data/fixtures'
+import { samePhrase } from './templateBridge'
 
 export interface ConversationBrief {
   title: string
@@ -27,15 +28,7 @@ export interface ConversationProvider {
 }
 
 function usedTarget(unit: PhraseUnit, learnerText: string): boolean {
-  const hay = learnerText.toLowerCase().replace(/\s/g, '')
-  const surface = unit.targetSentence.replace(/\s/g, '').toLowerCase()
-  if (surface && hay.includes(surface.slice(0, Math.min(4, surface.length)))) {
-    return true
-  }
-  return unit.items.some((item) => {
-    const s = item.surface.replace(/\s/g, '').toLowerCase()
-    return s.length >= 2 && hay.includes(s)
-  })
+  return samePhrase(learnerText, unit.targetSentence)
 }
 
 /** Canned roleplay — no network. Reuses the unit sentence. */
@@ -50,10 +43,7 @@ export class MockConversationProvider implements ConversationProvider {
       scene: stash
         ? 'A friend just bumped into you and wants to hear the phrase you stashed.'
         : 'A classmate asks what you’re doing today — use the sentence you just built.',
-      targets: [
-        unit.targetSentence,
-        ...unit.items.slice(0, 2).map((i) => `${i.surface} · ${i.gloss}`),
-      ],
+      targets: [unit.targetGloss],
       prompt: stash
         ? 'Try to use your phrase in a short reply.'
         : 'Answer with today’s sentence — or close enough.',
@@ -94,11 +84,11 @@ export class MockConversationProvider implements ConversationProvider {
       }
     }
 
-    if (this.turn >= 4 || (hit && this.turn >= 2)) {
+    if (hit && this.turn >= 2) {
       return {
-        npcMessage: `Nice — “${unit.targetSentence}” lands. See you later!`,
+        npcMessage: 'Nice — that lands. See you later!',
         done: true,
-        usedTarget: hit,
+        usedTarget: true,
       }
     }
 

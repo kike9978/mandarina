@@ -660,13 +660,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }
         if (activeSessionId) await endDbSession(activeSessionId)
         const stamp = new Date().toISOString()
-        const nextDay = profile.journeyDay + 1
-        await db.profiles.update('local', {
-          lastActiveAt: stamp,
-          journeyDay: nextDay,
-        })
+        await db.profiles.update('local', { lastActiveAt: stamp })
         setLastActiveAt(stamp)
-        setProfile((p) => ({ ...p, journeyDay: nextDay }))
         await clearSessionSnap()
         await refreshDueCounts(profile.languageId)
         return
@@ -696,7 +691,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       listenSourceId,
       clearSessionSnap,
       profile.languageId,
-      profile.journeyDay,
       activeUnit,
       momentum,
       refreshDueCounts,
@@ -720,32 +714,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setScriptCleared(true)
         setAbilities((prev) =>
           prev.map((a) =>
-            a.id === 'script-basics' || a.id === 'script-reinforce'
-              ? { ...a, status: a.id === 'script-basics' ? 'done' : 'partial' }
-              : a.id === 'intro'
-                ? { ...a, status: 'partial' }
-                : a,
+            a.id === 'script-basics' ? { ...a, status: 'done' as const } : a,
           ),
         )
         await setAbilityStatus(profile.languageId, 'script-basics', 'done')
-        await setAbilityStatus(profile.languageId, 'script-reinforce', 'partial')
-        await setAbilityStatus(profile.languageId, 'intro', 'partial')
         if (activeSessionId) await endDbSession(activeSessionId)
         const stamp = new Date().toISOString()
-        const nextDay = profile.journeyDay + 1
-        await db.profiles.update('local', {
-          lastActiveAt: stamp,
-          journeyDay: nextDay,
-        })
+        await db.profiles.update('local', { lastActiveAt: stamp })
         setLastActiveAt(stamp)
-        setProfile((p) => ({ ...p, journeyDay: nextDay }))
         await refreshDueCounts(profile.languageId)
         return
       }
       setCurrentScriptActivity(next)
       setScriptSteps((prev) => withProgress(prev, next))
     },
-    [activeSessionId, profile.languageId, profile.journeyDay, refreshDueCounts],
+    [activeSessionId, profile.languageId, refreshDueCounts],
   )
 
   const resetSession = useCallback(() => {

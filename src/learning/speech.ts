@@ -75,21 +75,19 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** Practice mic: a beat of listening, then nothing to paste. It does not type the answer. */
 export async function runMockListen(
-  target: string,
+  _target: string,
   onPartial: (text: string) => void,
   opts?: { delayMs?: number; signal?: AbortSignal },
 ): Promise<string> {
   const delay = opts?.delayMs ?? 220
-  const parts = mockPartials(target)
-  for (const part of parts) {
-    if (opts?.signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError')
-    }
-    onPartial(part)
-    if (delay > 0) await pause(delay)
+  if (opts?.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError')
   }
-  return target.trim()
+  onPartial('…')
+  if (delay > 0) await pause(delay)
+  return ''
 }
 
 export function startLiveListen(opts: {

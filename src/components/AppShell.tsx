@@ -23,7 +23,7 @@ export function AppShell({
 }) {
   return (
     <div
-      className={`relative flex min-h-dvh w-full min-w-0 max-w-full flex-1 flex-col lg:min-h-0 lg:h-full ${
+      className={`relative flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 flex-col ${
         hideNav
           ? ''
           : 'pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]'

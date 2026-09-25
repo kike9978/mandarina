@@ -181,6 +181,16 @@ Here you go.
 })
 
 describe('parsePackOrTsv', () => {
+  it('drops a Mandarin word that has no pinyin', () => {
+    const result = parsePackOrTsv(
+      '[{"surface":"水","gloss":"water"},{"surface":"水","gloss":"water","reading":"shuǐ"}]',
+      [],
+      'zh',
+    )
+    expect(result.rows.map((row) => row.reading)).toEqual(['shuǐ'])
+    expect(result.dropped).toBe(1)
+  })
+
   it('reads tab-separated lines', () => {
     const result = parsePackOrTsv('Selamat pagi\tGood morning\tSelamat pagi, Bu.')
     expect(result.rows[0]).toMatchObject({

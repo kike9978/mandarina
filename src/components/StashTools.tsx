@@ -9,8 +9,8 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   getPhraseUnit,
-  SAMPLE_PACK_JSON,
-  SAMPLE_TUTOR_PACK_JSON,
+  samplePackJson,
+  sampleTutorPackJson,
 } from '../data/fixtures'
 import {
   clearNoteTweaks,
@@ -174,7 +174,7 @@ export function PackImport({
   const [message, setMessage] = useState<string | null>(null)
 
   function ingest(text: string) {
-    const parsed = parsePackOrTsv(text, knownSurfacesFor(profile.languageId, stash))
+    const parsed = parsePackOrTsv(text, knownSurfacesFor(profile.languageId, stash), profile.languageId)
     if (parsed.error || parsed.rows.length === 0) {
       setMessage(parsed.error ?? 'Hmm — no phrases in that pack')
       return
@@ -221,7 +221,7 @@ export function PackImport({
       <button
         type="button"
         className={`${chipClass} w-fit`}
-        onClick={() => ingest(SAMPLE_PACK_JSON)}
+        onClick={() => ingest(samplePackJson(profile.languageId))}
       >
         Load sample pack
       </button>
@@ -304,6 +304,7 @@ export function TutorPackSheet({
     const parsed = parsePackOrTsv(
       paste,
       knownSurfacesFor(profile.languageId, stash),
+      profile.languageId,
     )
     const sources = parseSourceItems(
       parsed.sourceItems,
@@ -456,7 +457,7 @@ export function TutorPackSheet({
         type="button"
         className={`${chipClass} w-fit`}
         onClick={() => {
-          setPaste(SAMPLE_TUTOR_PACK_JSON)
+          setPaste(sampleTutorPackJson(profile.languageId))
           setPreview(null)
           setPreviewSources([])
           setPreviewTips([])
