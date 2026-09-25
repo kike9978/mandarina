@@ -1,12 +1,13 @@
 # Mandarina plans
 
-Two implementation phases. Each plan is split into **Part A — Pure Frontend** (fixtures/mocks) and **Part B — Backend / local-or-proxy integration**.
+The running app followed Phase 1. The next pass is the redesign plan: flows the learner can trust, and a session that only counts a real retrieval. Phase 1 and Phase 2 stay the build plans. Each is split into **Part A — Pure Frontend** (fixtures/mocks) and **Part B — Backend / local-or-proxy integration**.
 
 | Plan | Focus | Backend meaning |
 |---|---|---|
+| [Redesign — Clear flows & a real learning result](./redesign-flow-and-proficiency.md) | Same first lesson in all six languages; a pasted journey is the path for any other language; journal and coach stay on device; success is logged only on retrieval | Same local stack. No model call from the app. The learner copies a journey brief and pastes units back |
 | [Phase 1 — Foundation & Learning Journey](./phase-1-foundation-and-learning-journey.md) | PWA shell, playful journey UX, session bridges, invisible FSRS, **stash/import**, **tutor pack** (brief out, JSON back), **listening posts** on the Journey map | On-device: Dexie, ts-fsrs, orchestrator, offline PWA, local dictionary. No in-app model calls or media players |
 | [Phase 2 — Production, Writing & AI](./phase-2-production-writing-and-ai.md) | Write It, Boss Challenge, voice, corrections→signals | Stroke engine + Deno proxy (Groq/Gemini), speech |
 
 **UI rules:** [`.cursor/rules/playful-visual-language.mdc`](../../.cursor/rules/playful-visual-language.mdc) — Lucide icons + Game Builder Garage / lesson-map playfulness (grid, path, guide, sunburst/crown clears, SoftChoice energy). Skyrim-style constellations only on Progress.
 
-**Order:** Finish Phase 1 M7 before Phase 2 proxy/AI work.
+**Order:** Redesign plan (language parity, flow honesty, real grades, honest claims, then clipboard jobs) before Phase 2 proxy/AI work. The app still does not call a model. Phase 2 does not paper over a success that was only a tap. The first lesson does not ship for Indonesian or Spanish alone.
