@@ -10,11 +10,13 @@ import { PracticePage } from './pages/PracticePage'
 import { ProgressPage } from './pages/ProgressPage'
 import { StashPage } from './pages/StashPage'
 import { JournalPage } from './pages/JournalPage'
+import { LyricsPage } from './pages/LyricsPage'
 import { SessionPage } from './pages/SessionPage'
 import { ClearPage } from './pages/ClearPage'
 import { ScriptSessionPage } from './pages/ScriptSessionPage'
 import { ScriptClearPage } from './pages/ScriptClearPage'
 import { WritingChartPage } from './pages/WritingChartPage'
+import { ScriptSetPage } from './pages/ScriptSetPage'
 
 function ShellRoutes() {
   return (
@@ -26,6 +28,7 @@ function ShellRoutes() {
         <Route path="/progress" element={<ProgressPage />} />
         <Route path="/stash" element={<StashPage />} />
         <Route path="/journal" element={<JournalPage />} />
+        <Route path="/lyrics" element={<LyricsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
@@ -87,6 +90,16 @@ export default function App() {
             <Gate onboarded={onboarded}>
               <AppShell hideNav>
                 <ClearPage />
+              </AppShell>
+            </Gate>
+          }
+        />
+        <Route
+          path="/script-set"
+          element={
+            <Gate onboarded={onboarded}>
+              <AppShell hideNav>
+                <ScriptSetPage />
               </AppShell>
             </Gate>
           }

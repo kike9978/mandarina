@@ -1,6 +1,8 @@
 import { Sparkles, Volume2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { PhraseUnit } from '../data/fixtures'
+import { languageById } from '../data/languages'
+import { buildSceneBrief, parseScene } from '../learning/scenePaste'
 import {
   MockConversationProvider,
   type CorrectionEvent,
@@ -44,12 +46,20 @@ export function BossChallenge({
   const [correction, setCorrection] = useState<CorrectionEvent | null>(null)
   const [usedAny, setUsedAny] = useState(false)
   const [offlineHint, setOfflineHint] = useState(!navigator.onLine)
+  const [scenePaste, setScenePaste] = useState('')
+  const [sceneOpener, setSceneOpener] = useState<string | null>(null)
+  const [sceneError, setSceneError] = useState<string | null>(null)
+  const sceneBrief = buildSceneBrief({
+    languageName: languageById(profile.languageId).name,
+    sentence: unit.targetSentence,
+    gloss: unit.targetGloss,
+  })
 
   const startChat = async () => {
     setBusy(true)
     setOfflineHint(!navigator.onLine)
     const opening = await provider.start(unit)
-    setLines([{ id: 'npc-0', role: 'npc', text: opening.npcMessage }])
+    setLines([{ id: 'npc-0', role: 'npc', text: sceneOpener ?? opening.npcMessage }])
     setStage('chat')
     setBusy(false)
   }
@@ -108,6 +118,36 @@ export function BossChallenge({
               </li>
             ))}
           </ul>
+        </div>
+        <div className="grid gap-2">
+          <p className="font-bold">Paste a scene if you want a different question. It does not count as using the line.</p>
+          <textarea className="min-h-16 rounded-xl border-[2.5px] border-ink bg-paper p-3 text-sm font-bold" readOnly value={sceneBrief} />
+          <button
+            type="button"
+            className="min-h-11 font-extrabold"
+            onClick={() => void navigator.clipboard.writeText(sceneBrief)}
+          >
+            Copy the scene brief
+          </button>
+          <textarea
+            className="min-h-16 rounded-xl border-[2.5px] border-ink bg-paper p-3 font-bold"
+            value={scenePaste}
+            onChange={(event) => setScenePaste(event.target.value)}
+            placeholder="Paste the scene JSON"
+          />
+          <button
+            type="button"
+            className="min-h-11 font-extrabold"
+            onClick={() => {
+              const parsed = parseScene(scenePaste, unit.targetSentence)
+              setSceneOpener(parsed.opener ?? null)
+              setSceneError(parsed.error ?? null)
+            }}
+          >
+            Use this opener
+          </button>
+          {sceneOpener && <p className="font-bold">Opener: {sceneOpener}</p>}
+          {sceneError && <p className="font-bold">{sceneError}</p>}
         </div>
         <SoftChoice
           primaryLabel="Why not!"

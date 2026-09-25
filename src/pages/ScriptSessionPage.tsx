@@ -2,7 +2,8 @@ import { Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasWritingChart } from '../data/writingCharts'
-import { SCRIPT_GLYPHS, languageById } from '../data/languages'
+import { SCRIPT_GLYPHS, languageById, type ScriptGlyph } from '../data/languages'
+import { loadNextMarks } from '../learning/nextMarks'
 import { speakText, ttsLangFor } from '../learning/tts'
 import { useAppState, useGuideName } from '../state/AppState'
 import { GuideBubble, PrimaryCta } from '../components/ui'
@@ -32,13 +33,30 @@ export function ScriptSessionPage() {
     scriptSteps,
     currentScriptActivity,
     advanceScriptFrom,
+    rewindScriptToSee,
     scriptCleared,
     profile,
   } = useAppState()
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
   const glyphs = SCRIPT_GLYPHS[profile.languageId]
-  const focus = glyphs[0]
+  const [extras, setExtras] = useState<ScriptGlyph[]>([])
+  const [glyphIndex, setGlyphIndex] = useState(0)
+  const lineup = [
+    glyphs[0],
+    ...extras.filter((mark) => mark.glyph !== glyphs[0]?.glyph),
+  ].filter((mark): mark is (typeof glyphs)[number] => Boolean(mark))
+  const focus = lineup[Math.min(glyphIndex, lineup.length - 1)] ?? glyphs[0]
+
+  useEffect(() => {
+    let cancel = false
+    void loadNextMarks(profile.languageId).then((marks) => {
+      if (!cancel) setExtras(marks)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [profile.languageId])
 
   const stepMeta = scriptSteps.find((s) => s.id === currentScriptActivity)
   const stepNumber = stepMeta?.number ?? 1
@@ -59,7 +77,10 @@ export function ScriptSessionPage() {
       />
       <div className="page-pad pt-2">
         <p className="flex flex-wrap items-center gap-2 text-sm font-extrabold text-ink-soft">
-          <span>{lang.scriptTrackTitle}</span>
+          <span>
+            {lang.scriptTrackTitle}
+            {lineup.length > 1 ? ` · mark ${glyphIndex + 1} of ${lineup.length}` : ''}
+          </span>
           {hasWritingChart(profile.languageId) && (
             <button
               type="button"
@@ -91,7 +112,7 @@ export function ScriptSessionPage() {
         )}
         {currentScriptActivity === 'spot' && (
           <SpotGlyph
-            glyphs={glyphs}
+            glyphs={lineup}
             targetId={focus.id}
             guideName={guideName}
             onNext={() => advanceScriptFrom('spot')}
@@ -128,7 +149,15 @@ export function ScriptSessionPage() {
               focus.useGloss ?? glyphs.find((g) => g.useGloss)?.useGloss
             }
             guideName={guideName}
-            onNext={() => advanceScriptFrom('use')}
+            more={glyphIndex + 1 < lineup.length}
+            onNext={() => {
+              if (glyphIndex + 1 < lineup.length) {
+                setGlyphIndex((index) => index + 1)
+                rewindScriptToSee()
+                return
+              }
+              advanceScriptFrom('use')
+            }}
           />
         )}
       </div>
@@ -510,6 +539,7 @@ function UseIt({
   usePhrase,
   useGloss,
   guideName,
+  more,
   onNext,
 }: {
   glyph: string
@@ -518,6 +548,7 @@ function UseIt({
   usePhrase?: string
   useGloss?: string
   guideName: string
+  more?: boolean
   onNext: () => void
 }) {
   const highlighted = usePhrase
@@ -545,7 +576,7 @@ function UseIt({
         </p>
       </div>
       <PrimaryCta onClick={onNext}>
-        All Clear — writing warm-up done
+        {more ? 'Next mark' : 'All Clear — writing warm-up done'}
       </PrimaryCta>
     </Shell>
   )

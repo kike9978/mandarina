@@ -157,7 +157,7 @@ export function parseTutorPack(
       sourceItems: [],
       skippedDuplicate: 0,
       dropped: 0,
-      error: 'Hmm — no phrases in that pack',
+      error: 'That paste is not valid JSON. Nothing was imported.',
     }
   }
   const {
@@ -340,6 +340,7 @@ Keep these coaching rules
 ${tips.map((t) => `- ${t}`).join('\n')}`
 
   return `You are a language coach. Reply with ONLY JSON (no intro). I will paste it back into Mandarina.
+${languageLockLine(input.languageName)}
 
 Learner
 - Language: ${input.languageName} (${input.writingSystem})
@@ -363,6 +364,10 @@ If you already have the spoken words, put them in transcript so we can pull voca
 Reply as {"phrases":[...],"sources":[{"title","creator","medium":"video|podcast","url","why","listenFor?","transcript?"}],"noteTweaks":["up to 4 short rules for THIS note next time"]}.
 noteTweaks are optional style/topic rules only. Do not rewrite the learner snapshot. Do not set schedules or mark skills done.
 Cap 3–8 phrases and 1 listen.`
+}
+
+export function languageLockLine(languageName: string): string {
+  return `Write ${languageName} for every sentence and word. English only for glosses. JSON only. Do not use examples from any other language.`
 }
 
 const READING_AID_RULE =

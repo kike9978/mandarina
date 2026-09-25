@@ -15,13 +15,15 @@ Check a box only when that behavior is in the running app.
 | [R2 Honest path](#r2--honest-path) | Goal, script gate, progress labels, and the screen after clear say what is true | R1 done |
 | [Readings on the script](#readings-on-the-script) | Furigana on every kanji, pinyin on every Chinese character, vowel marks on beginner Arabic | Now. Applies again to every later string in those languages |
 | [Writing charts](#writing-charts) | A reference chart for each non-Latin script, character plus reading, like a hiragana table | Now. Not a graded lesson |
-| [Writing progress](#writing-progress) | The writing system in small sets, reviews that come back, and a check that matches the stage | Charts done. Can overlap R3. Not the stroke engine |
+| [Writing progress](#writing-progress) | The writing system in small sets, reviews that come back, and a check that matches the stage | Charts done. Can overlap R3 |
+| [Stroke order](#stroke-order) | Non-Latin marks show the strokes in order. A trace passes only when the ink is that character | Now. On the device. No handwriting model |
 | [R3 Real grades](#r3--real-grades) | A success is logged only for a retrieval | R1 done. Can overlap the end of R2 |
 | [R4 Honest claims](#r4--honest-claims) | Celebration and “I can…” match those reps | R3 done |
 | [R5 Clipboard coach](#r5--clipboard-coach) | Journeys and the other paste jobs. A paste is not a grade | R1–R4 done for all six languages |
 | [Lyrics](#lyrics) | A song’s lines, and a short word list tied to words they already know. A paste is not a grade | R5 paste contract. The page can be specified before that |
 | [R6 Journal](#r6--journal) | Entries that use known words. Saving is not a grade | R4 done. Prompt paste can wait for R5 |
-| Later | Stroke checks and live talk (the old Phase 2). Not this pass | R1–R4 done. No proxy before that |
+| [R7 Languages you can leave](#r7--languages-you-can-leave) | Switch among languages on this device. A new one is a journey Mandarina’s own prompt asked for, in the same shape as a premade path | Now. The app still does not call a model |
+| Later | Live talk (the old Phase 2). Not this pass | R1–R4 done. No proxy before that |
 
 Do not ship the first lesson for Indonesian or Spanish alone. Do not add a hand-authored second ability. Do not call a model from the app.
 
@@ -36,28 +38,36 @@ A new learner can answer, from the screen alone:
 3. What do I have to actually do — listen, recognize, build, say?
 4. What can I do when the celebration ends?
 5. What is the next session, and what brings me back?
+6. Which language is this, and how do I study another one without losing this one?
 
 A completed phrase session leaves one true ability: the learner retrieved the sentence (meaning and form) without the app typing it for them. Progress copy describes that, and does not describe skills that have no lesson.
+
+The language chosen at the start is not permanent. More than one language can live on the device. One is active. Leaving it does not erase it.
 
 ---
 
 ## Flow
 
-One learner, one language, no server. A paste never counts as a success. Saving a journal entry never counts as a success.
+One learner, many languages on this device, one active at a time. No server. A paste never counts as a success. Saving a journal entry never counts as a success. Switching language never counts as a success.
 
 ```mermaid
 flowchart TD
-  open[Open the app] --> hasProfile{Profile on this device?}
-  hasProfile -->|No| choose[Choose language, script level, and goal]
-  choose --> listed{One of the six shipped languages?}
-  listed -->|No| journeyBrief[Copy a journey brief for that language]
-  journeyBrief --> pasteJourney[Paste ordered units. Only the first can start]
-  pasteJourney --> home
-  listed -->|Yes| latin{Latin script, or comfortable with the writing?}
-  latin -->|Yes| home[Home]
+  open[Open the app] --> hasProfile{Any language on this device?}
+  hasProfile -->|No| choose[Choose a shipped language, or add one]
+  choose --> listed{One of the six, or a new name?}
+  listed -->|New name| askNew[Script level and goal, in the app]
+  askNew --> addBrief[Copy Mandarina's journey prompt]
+  addBrief --> pasteLang[Paste journey JSON in the premade unit shape]
+  pasteLang --> home
+  listed -->|One of the six| latin{Latin script, or comfortable with the writing?}
+  latin -->|Yes| home[Home, that language active]
   latin -->|No| warmup[First writing set, then the phrase lesson]
   warmup --> home
   hasProfile -->|Yes| home
+
+  home --> langs{Change language?}
+  langs -->|One already on the device| home
+  langs -->|A new one| askNew
 
   home --> due{A real review is due?}
   due -->|A mark| scriptReview[Writing review for their stage]
@@ -98,7 +108,8 @@ flowchart TD
   parked --> coach[Copy a brief. Paste JSON back]
   home --> coach
   coach --> job{Which brief?}
-  job -->|Language journey| addJourney[Ordered units for any language they name]
+  job -->|Add a language| askNew
+  job -->|Language journey| addJourney[Ordered units for the active language, same JSON]
   job -->|Next lesson| addUnit[Playable unit for their goal]
   job -->|Scene| addScene[Boss lines for this sentence]
   job -->|Retry misses| addRetry[Tasks tagged with the missed skill]
@@ -119,20 +130,24 @@ flowchart TD
 
 | Use case | Where it enters | What comes out |
 |---|---|---|
-| First visit, one of the six | Choose language. Nothing is preselected | Home, in that language only |
-| First visit, any other language | Copy a journey brief, paste the reply | Unit 1 of that journey. Later units stay locked |
+| First visit, one of the six | Choose language. Nothing is preselected | Home, in that language. The other five stay available to add later, with no paste |
+| First visit, any other language | Name it, then copy the journey prompt Mandarina filled in. Paste the reply | A journey in the same unit shape as Japanese or Spanish, stored as that language. Unit 1 can start. Later units stay locked |
 | New to a non-Latin script | First writing set, then the phrase lesson | Phrase lesson unlocks. The rest of the script stays ahead, in sets |
 | A mark is due | Home review, before a new row | The task matches the stage. A miss comes back. The chart tap does not count |
 | Ready for the next row | Journey script rail, or Home when nothing else is due | The next set only. Later rows stay locked |
 | Comfortable with the writing | A shorter check, aid hidden on marks they have retrieved | Not a poster quiz of the whole system |
+| Trace a non-Latin mark | Trace It | The strokes are numbered, in taught order. A pass is that character, not a long scribble |
 | Daily lesson | Home Start | One sentence retrieved, then an honest next step |
 | Near-miss while saying the line | Check this line | A hint. The step stays failed |
 | Scene | Optional boss, or a pasted scene | The question matches the sentence. Skip is not a win |
 | Come back later | Due card on Home | The task matches the skill that is due |
 | Nothing left to study | Parked Home | “Lesson done,” not “Continue” on the same sentence |
 | Use the words | Journal | A saved entry. Word count is not a score |
-| A language the app did not ship | Language journey paste | A path of units in that language. Paste does not clear any of them |
-| Grow a shipped language | Next lesson, or a journey paste | The next unit, or a path after the shipped first lesson |
+| Leave the language they are in | Languages list on Home | The other language’s Home. Lessons, stash, journal, writing progress, and due cards stay with the language they left |
+| Come back to a language | Same list | That language’s Home, not day one, and not onboarding again |
+| Change script level or goal | On that language’s card | The new choice applies to that language only. Retrieved units stay retrieved |
+| A language the app did not ship | Mandarina’s journey prompt for that name, then the paste | Units the lesson loop already runs. The language is its own place. A French pack is not stored inside Japanese |
+| Grow the active language | The same journey prompt, or next-lesson | More units in that shape, after the lesson they already have. The paste does not create a second language |
 | Extend the script | Next marks paste | The warm-up can leave the first glyph |
 | Bring their own audio | Listen briefs | Cards and stash rows in their language |
 | A song they already like | Lyrics. Paste the lines, or a brief that extracts words | A few words tied to ones they know. Stash is not a grade |
@@ -346,7 +361,7 @@ Script familiarity chooses the starting set, not a displayed rank. **New** start
 
 Each mark the learner has actually retrieved gets a card. A due mark shows on Home before a new row, in ordinary language (“A few marks are ready”), with a small cap, same idea as a phrase comeback. A miss schedules the mark again. A clean retrieval schedules the next gap. A hint does not write a second rating. Reveal still advances and still schedules Again.
 
-The chart, Meet, and Hear do not rate the card. A scribble is not a writing success. Stroke-order checks stay in the later pass.
+The chart, Meet, and Hear do not rate the card. A scribble is not a writing success. Matching the ink to that character’s strokes is [Stroke order](#stroke-order).
 
 ### The check depends on the stage
 
@@ -362,19 +377,66 @@ A failed check stays on that set. The next row does not open. Finishing a writin
 
 ### Checklist
 
-- [ ] Home names the next writing set in words (“か row”), not as a level
-- [ ] Only the first unretrieved set can start. Later rows stay locked
-- [ ] Familiarity new starts at the first set. Some and comfortable may start later, and earlier marks are not marked known
-- [ ] A retrieved mark comes back on Home when it is due, before a new row
-- [ ] The review cap stays small, and the screen does not show an interval
-- [ ] A chart tap, Meet, or Hear does not log a success
-- [ ] An early check asks for the reading or the mark, with a lure, and does not print the answer
-- [ ] A later check hides the reading on the mark being tested
-- [ ] An Arabic later check asks for the shape in the word, not only the isolated letter
-- [ ] A comfortable check can hide the aid only on marks they have retrieved
-- [ ] A miss or a reveal does not open the next set
-- [ ] Indonesian and Spanish use this shape for their sound list, and still have no character chart
-- [ ] Finishing a writing set does not mark a speaking ability done
+- [x] Home names the next writing set in words (“か row”), not as a level
+- [x] Only the first unretrieved set can start. Later rows stay locked
+- [x] Familiarity new starts at the first set. Some and comfortable may start later, and earlier marks are not marked known
+- [x] A retrieved mark comes back on Home when it is due, before a new row
+- [x] The review cap stays small, and the screen does not show an interval
+- [x] A chart tap, Meet, or Hear does not log a success
+- [x] An early check asks for the reading or the mark, with a lure, and does not print the answer
+- [x] A later check hides the reading on the mark being tested
+- [x] An Arabic later check asks for the shape in the word, not only the isolated letter
+- [x] A comfortable check can hide the aid only on marks they have retrieved
+- [x] A miss or a reveal does not open the next set
+- [x] Indonesian and Spanish use this shape for their sound list, and still have no character chart
+- [x] Finishing a writing set does not mark a speaking ability done
+
+---
+
+## Stroke order
+
+Trace It draws a faded copy of the whole mark. The step passes when the ink is one stroke and at least 70px long (`inkLooksWritten` in `writing.ts`). A line, a scribble, or a different character all pass. The learner never sees which stroke comes next.
+
+Japanese, Mandarin, Korean, and Arabic show the stroke order, and a trace passes only when the ink is that character. Indonesian and Spanish do not get a stroke-order diagram. Their letter practice still has to be the mark they were asked to write, not a 70px scribble.
+
+### The order is on the page
+
+On Trace It the mark is its strokes, in the order that script teaches them. Each stroke has a number, a start dot, and a direction. The stroke to draw now is the loud one. A stroke they already matched stays on the page. The next number appears when the current stroke matches.
+
+Copy keeps that order, lighter. From memory hides the numbers and the guide. The check is still that character.
+
+A chart cell can show the same order. Watching it, or tapping the cell, does not log a success and does not clear the warm-up.
+
+Arabic stays right to left. The numbers follow the letter’s own stroke order, not the direction of the line. A hangul block shows the jamo strokes in textbook order, consonant then vowel. Each kana has its own list. The Mandarin marks in the warm-up (人 口 日 月 木) each have their own list. A character in a sentence is not a trace target until it is a mark in a set.
+
+### The ink has to be that character
+
+Length is not the character. `inkLooksWritten` is not a match.
+
+A stroke matches the current stroke when it starts near that stroke’s start, moves in the same direction, and ends near that stroke’s end. A shaky hand and a different size still count. A different shape, the wrong stroke, or the strokes out of order do not.
+
+Trace It passes only after every stroke of that character is matched, in order. Tracing あ does not pass for い. A long scribble does not pass for 人. Copy and From memory use the same strokes. From memory fails when the ink is a different character, and the hint can show the numbers again. Showing the numbers is not a pass.
+
+A writing Good is logged only for that match. Reveal still advances and still schedules Again. Seeing the order, undoing, and clearing the canvas do not log a success.
+
+The strokes are stored with the mark. The app does not send the ink to a model. An added language shows this order only when a prompt Mandarina wrote comes back with those strokes in a shape the canvas can draw. A mark with no strokes does not fall back to the length check.
+
+### Checklist
+
+- [ ] Japanese Trace It shows each kana’s strokes in order, with a number, a start, and a direction
+- [ ] Mandarin Trace It does the same for 人 口 日 月 木
+- [ ] Korean Trace It shows jamo strokes, then a block, in textbook order
+- [ ] Arabic Trace It shows the letter’s strokes in taught order
+- [ ] The current stroke is the one on screen, and a matched stroke stays
+- [ ] Indonesian and Spanish do not show this diagram
+- [ ] A chart cell can show the same order, and that view does not log a success
+- [ ] A 70px scribble does not pass Trace It, Copy, or From memory
+- [ ] Tracing a different character does not pass
+- [ ] Strokes out of order do not pass Trace It
+- [ ] A pass is every stroke of that character, in order
+- [ ] A writing Good is logged only for that match
+- [ ] Reveal still advances and still schedules Again
+- [ ] A mark with no stored strokes does not use the length check
 
 ---
 
@@ -393,7 +455,7 @@ The first lesson is one sentence, in whichever language they chose. This phase d
 | Script Spot | Find the glyph in a lineup whose prompt does not already print that glyph. | “Find あ” above a grid that contains あ |
 | Script Hear / Use | Hear stays ungraded. If audio plays, it speaks the glyph or the word, not the reading label (“a”, “rén”). Use is a retrieval (find or read the glyph in a word without the glyph printed as the search key) or it is ungraded. | Button press → listening or contextualUse Good. TTS of the romanization |
 | Boss brief | The scene states the situation. It does not list the full target sentence as a cheat sheet before the learner answers. | `brief.targets` showing the sentence, then the chat asking for it |
-| Ink | A later writing engine. Until then, ink does not log writing Good. A scribble past 70px is not a character. | `inkLooksWritten` → success |
+| Ink | A writing Good only when the ink matches that character’s strokes, in [Stroke order](#stroke-order). Until that match exists, ink does not log writing Good. A scribble past 70px is not a character. | `inkLooksWritten` → success |
 | Boss | Optional. If played, the prompt asks for the speech act the sentence performs. Skip does not celebrate use. | “What are you doing today?” scored against “I have work”; substring / 4-character prefix counted as use |
 | Comeback | The task matches the due facet (meaning, form, or listen). Cap stays small. | A due writing card reviewed as an English gloss tap |
 
@@ -451,7 +513,7 @@ The boss line and the target have to be the same move. Either the scene asks whe
 - [x] A due writing card is not reviewed as an English gloss tap
 - [x] A hint tap does not write a second rating
 - [x] Reveal still advances and still schedules Again
-- [ ] Ignoring audio, tapping Spot, and using the mock mic does not create listening, recognition, or production Goods
+- [x] Ignoring audio, tapping Spot, and using the mock mic does not create listening, recognition, or production Goods
 - [x] The same grading rules hold for zh, ko, ar, es, and id, not only Japanese
 
 ---
@@ -465,12 +527,12 @@ The boss line and the target have to be the same move. Either the scene asks whe
 
 ### Checklist
 
-- [ ] The celebration names the sentence the learner produced
-- [ ] The celebration does not show a level
-- [ ] “I can…” appears for the sentence only after their own Say It production
-- [ ] “I can read this mark” appears only after that glyph was retrieved
-- [ ] Script clear does not mark a speaking ability done
-- [ ] Progress does not describe introduce / food / appointments as skills in progress
+- [x] The celebration names the sentence the learner produced
+- [x] The celebration does not show a level
+- [x] “I can…” appears for the sentence only after their own Say It production
+- [x] “I can read this mark” appears only after that glyph was retrieved
+- [x] Script clear does not mark a speaking ability done
+- [x] Progress does not describe introduce / food / appointments as skills in progress
 
 ---
 
@@ -496,7 +558,7 @@ The learner context is already in the brief: language, goal, script level, known
 
 | Job | Learner copies | Paste adds | Why this, not a server |
 |---|---|---|---|
-| **Language journey** | Language name, goal, script level, and “a short path of lessons I can practice in this app” | Ordered playable units. Each unit has a sentence, gloss, reading if needed, chunks, a meaning question on the word it asks about, and a boss prompt for that sentence’s speech act. Optional first marks if the script is new | The six shipped languages are not the catalog. French, or any language they name, becomes a journey without a backend and without a hand-authored course. The same paste can extend Japanese or Arabic past the one shipped sentence. |
+| **Language journey** | The prompt Mandarina wrote: active language, goal, script level, and the exact unit JSON | Ordered units in that JSON. Each unit has a sentence, gloss, reading if the script needs it, chunks, a meaning question on the word it asks about, a lure, and a boss prompt for that sentence’s speech act | The chat fills a shape the app already plays. It does not invent a course format. A language the app did not ship uses this same prompt, then becomes its own language in [R7](#r7--languages-you-can-leave). |
 | **Next lesson** | Language, goal, known sentences, weak spots, and “one new move, reuse words they have” | One playable unit in the same shape | One step when they do not want a whole path. Goal changes what that step is. |
 | **Check this line** | What they typed, the target, and the facet they missed (particle, word order, register — not a score) | A short diagnostic: what differs, one corrected line, one hint that does not reveal on the first line | Say It is exact-match. The external chat can explain a near-miss. Check still passes only if the learner’s own text matches. |
 | **Scene for this line** | The target sentence and its gloss | NPC opener and two follow-ups that ask for that speech act, in the learner’s language, plus an English stage direction | Replaces a canned English question that does not match the sentence. |
@@ -511,30 +573,31 @@ The learner context is already in the brief: language, goal, script level, known
 - Only the first undone unit is the Home hero. Clearing it by retrieval unlocks the next. Pasting the pack unlocks nothing.
 - Units the paste did not include are not shown. A French journey does not add French cards to a Japanese profile.
 - A later paste can append units. It does not reset units they already cleared.
-- The brief tells the chat the lesson shape, so the reply is units the session can run, not an essay and not loose stash rows.
+- The brief is the prompt. The learner copies it. They do not write their own. The reply has to be the unit JSON that brief asked for, so the session can run it the way it runs a shipped sentence. An essay, a syllabus, or a different schema is not a journey.
+- Naming another language in this box does not switch the profile. Today that paste is stored under the active language’s journey key (`journey-v1:` plus that language id). R7 is the job that gives the new name its own language. Until then, this checklist’s “language outside the six” item means a pack of units, not a language the learner can leave and come back to.
 
 Listening briefs stay. They are not Indonesian-only, and they are not the only reason to open the coach.
 
 ### Checklist
 
-- [ ] Every brief names the active language and forbids examples from other languages
-- [ ] Sample paste on each control is in the active language
-- [ ] Invalid JSON shows the error and imports nothing
-- [ ] A paste never writes a Good
-- [ ] Language journey: a language outside the six can be named, brief copied, pack pasted
-- [ ] That paste stores ordered units and Home starts unit 1 only
-- [ ] Unit 2 stays locked until unit 1 is cleared by retrieval
-- [ ] A second journey paste appends and does not reset cleared units
-- [ ] Next lesson paste adds one playable unit for the learner’s goal
-- [ ] On a Korean profile, a next-lesson or journey paste contains no Indonesian
-- [ ] Check this line shows a hint on a Say It near-miss and leaves the step failed
-- [ ] Scene paste replaces the boss opener with a question that sentence answers
-- [ ] Retry these misses turns a writing miss into a writing task, not a gloss MCQ
-- [ ] Next marks paste adds glyphs the script session can drill after glyph 0
-- [ ] Listen briefs still work, in the active language
-- [ ] From these lyrics returns lines and a short word list in the active language
-- [ ] A word with no required reading aid is not imported
-- [ ] That paste does not write a Good
+- [x] Every brief names the active language and forbids examples from other languages
+- [x] Sample paste on each control is in the active language
+- [x] Invalid JSON shows the error and imports nothing
+- [x] A paste never writes a Good
+- [x] Language journey: a language outside the six can be named, brief copied, pack pasted
+- [x] That paste stores ordered units and Home starts unit 1 only
+- [x] Unit 2 stays locked until unit 1 is cleared by retrieval
+- [x] A second journey paste appends and does not reset cleared units
+- [x] Next lesson paste adds one playable unit for the learner’s goal
+- [x] On a Korean profile, a next-lesson or journey paste contains no Indonesian
+- [x] Check this line shows a hint on a Say It near-miss and leaves the step failed
+- [x] Scene paste replaces the boss opener with a question that sentence answers
+- [x] Retry these misses turns a writing miss into a writing task, not a gloss MCQ
+- [x] Next marks paste adds glyphs the script session can drill after glyph 0
+- [x] Listen briefs still work, in the active language
+- [x] From these lyrics returns lines and a short word list in the active language
+- [x] A word with no required reading aid is not imported
+- [x] That paste does not write a Good
 
 
 ---
@@ -554,18 +617,18 @@ A song the learner already likes is a source of words, not a second course. The 
 
 ### Checklist
 
-- [ ] Lyrics is reachable from Home, beside Listen
-- [ ] Pasting lines stores them on the device and does not add a Good
-- [ ] An empty page does not show another language’s sample song
-- [ ] From these lyrics asks for a few words, not every word in the song
-- [ ] Each kept word shows the lyric line it came from
-- [ ] A Japanese kanji, a Chinese character, or beginner Arabic without its reading aid is not imported
-- [ ] A word they already have is marked as known and is not stashed again
-- [ ] A new word can sit beside a known word when the paste names that link
-- [ ] Stashing a word or a lyric line does not write a Good
-- [ ] A stashed lyric line can later be built and said, because the line is its example
-- [ ] The page does not play audio and does not fetch the song
-- [ ] On a Korean profile, the lyrics sample and the word list contain no Indonesian
+- [x] Lyrics is reachable from Home, beside Listen
+- [x] Pasting lines stores them on the device and does not add a Good
+- [x] An empty page does not show another language’s sample song
+- [x] From these lyrics asks for a few words, not every word in the song
+- [x] Each kept word shows the lyric line it came from
+- [x] A Japanese kanji, a Chinese character, or beginner Arabic without its reading aid is not imported
+- [x] A word they already have is marked as known and is not stashed again
+- [x] A new word can sit beside a known word when the paste names that link
+- [x] Stashing a word or a lyric line does not write a Good
+- [x] A stashed lyric line can later be built and said, because the line is its example
+- [x] The page does not play audio and does not fetch the song
+- [x] On a Korean profile, the lyrics sample and the word list contain no Indonesian
 
 ---
 
@@ -585,24 +648,90 @@ A journal is where the learner uses words they already met. It is not a new cour
 
 ### Checklist
 
-- [ ] Journal is reachable from Home
-- [ ] With no known sentence, there is no writing task yet
-- [ ] After the first lesson, the prompt can be answered with that lesson’s words
-- [ ] The prompt is not the target sentence
-- [ ] Known words and sentences sit beside the page
-- [ ] Save stores the entry on the device and does not add a Good
-- [ ] Past entries can be reopened
-- [ ] A known-word count is shown and is not a score
-- [ ] Pasting a journal prompt replaces the suggestion and leaves the page empty
-- [ ] Check this line on a selected sentence adds a note and does not rewrite the entry
-- [ ] A Korean journal does not show an Indonesian prompt
+- [x] Journal is reachable from Home
+- [x] With no known sentence, there is no writing task yet
+- [x] After the first lesson, the prompt can be answered with that lesson’s words
+- [x] The prompt is not the target sentence
+- [x] Known words and sentences sit beside the page
+- [x] Save stores the entry on the device and does not add a Good
+- [x] Past entries can be reopened
+- [x] A known-word count is shown and is not a score
+- [x] Pasting a journal prompt replaces the suggestion and leaves the page empty
+- [x] Check this line on a selected sentence adds a note and does not rewrite the entry
+- [x] A Korean journal does not show an Indonesian prompt
+
+---
+
+## R7 — Languages you can leave
+
+One profile (`local`) holds one `languageId`. Onboarding writes it once. There is no way to leave it. A journey paste that names French is stored on the active language’s key (`journey-v1:` plus that id), so the app is still the language they started in.
+
+The language is a choice they can change. A language the app did not ship is not a new kind of course. It is a journey in the shape the six premade paths already use, and only because Mandarina’s prompt asked for that shape.
+
+### Switch
+
+From Home, the learner opens the languages on this device. Picking one they already have loads that language’s Home: its lesson, due cards, stash, journal, and writing progress. The one they left keeps those. Coming back is not day one and does not run onboarding again.
+
+Script level and goal belong to that language. Switching does not copy them across. Changing them later does not clear a unit they already retrieved. An open session stays on the language it started in until they leave it.
+
+The six shipped languages are on the list without a paste. Choosing Spanish after Japanese does not need a chat.
+
+### A new language is a premade journey
+
+This is the same loop as every other coach job. The app does not call a model. The learner does not write the prompt.
+
+1. They type the language name.
+2. The app asks script level and goal for that language only.
+3. Mandarina fills its journey prompt with that name, that goal, and that script level, and shows it. They copy that prompt into their own chat.
+4. They paste the reply back. The app reads the first JSON object, the same way `parseJourneyPack` already does.
+
+The prompt demands the JSON a shipped journey is made of:
+
+`language`, then `units`. Each unit is `title`, `sentence`, `gloss`, `chunks`, `ask`, `askGloss`, `lure`, `boss`, and `reading` when the script needs it.
+
+That is the object `toPhraseUnit` already turns into Meet, Spot, Break It Down, Your Turn, Build It, Say It, and the boss. The reply is not a syllabus, a dictionary, an essay, or a list of new activities. If it is not that JSON, nothing is imported. A unit missing the fields a premade unit needs is dropped. If none survive, nothing is imported. The `language` field has to be the name they gave the prompt.
+
+Home then starts the first unit that is not retrieved. Later units stay locked until that one is cleared by retrieval. Pasting the pack unlocks nothing. A later paste of the same prompt’s shape appends units and does not reset clears.
+
+The new language gets its own id on the device. Its journey is not written into the language they were on. French units do not show up in a Japanese lesson, stash, or journal. Samples from another language are not shown. There is no sample until a paste for this language supplies one, and that paste still has to match a prompt Mandarina wrote.
+
+The prompt states the reading-aid rule the app already enforces: furigana on kanji, pinyin on each character, vowel marks on the letters, or none when the letters are already the reading. A word that breaks the rule is not imported. The paste cannot add a new kind of reading or a new lesson step.
+
+A name that matches a shipped language (Japanese, Español) switches to that language. It does not create a second Japanese. A name that matches a language they already added switches to it, or appends units. It does not create a duplicate.
+
+Adding or switching writes no Good.
+
+### Checklist
+
+- [ ] Home lists the languages on this device, and the active one is named
+- [ ] Choosing a language they already have loads its lesson, due cards, stash, journal, and writing progress
+- [ ] The language they left keeps its cleared units and the rest of that progress
+- [ ] Coming back does not look like day one and does not run onboarding again
+- [ ] Script level and goal are stored per language and are not copied across on a switch
+- [ ] Changing script level or goal does not clear a retrieved unit
+- [ ] An open session stays on the language it started in
+- [ ] Japanese, Mandarin, Korean, Arabic, Spanish, and Indonesian can be chosen with no paste
+- [ ] A new language starts from a prompt Mandarina filled in. The learner copies that prompt. They do not write one
+- [ ] The prompt asks for `language` and `units` in the premade shape: `title`, `sentence`, `gloss`, `chunks`, `ask`, `askGloss`, `lure`, `boss`, and `reading` when needed
+- [ ] A paste of that JSON becomes a journey the phrase session already runs
+- [ ] An essay, a syllabus, or any other schema imports nothing
+- [ ] A unit missing those fields is dropped, and a paste with no playable unit imports nothing
+- [ ] Home starts unit 1 only. Later units stay locked until unit 1 is retrieved
+- [ ] The paste does not write a Good and does not mark unit 1 known
+- [ ] The new language has its own id. Its units are not stored on the language they were on
+- [ ] A second paste appends and does not reset cleared units
+- [ ] A paste whose `language` is not the name in the prompt imports nothing
+- [ ] Naming Japanese or Spanish does not create a second copy of that shipped language
+- [ ] A word that breaks the reading-aid rule in the prompt is not imported
+- [ ] On the new language, samples and the lesson contain none of the language they left
 
 ---
 
 ## What stays out
 
-- Hand-authored abilities beyond the first lesson. A longer path for one language arrives as a pasted journey for the learner who asked, not as a shipped Indonesian unit the other languages lack.
-- An in-app or proxy call to a model. The coach stays copy and paste. Stroke-order checks stay after R4. Writing progress reviews the mark by reading and shape. It does not grade ink.
+- Hand-authored abilities beyond the first lesson. A longer path arrives as units from Mandarina’s journey prompt, in the shape the session already plays, not as a shipped Indonesian unit the other languages lack.
+- A course the learner describes in their own words, or a prompt they wrote. A new language is imported only when the paste matches the journey JSON Mandarina’s prompt asked for.
+- An in-app or proxy call to a model, including a handwriting recognizer. Stroke order is matched on the device against strokes stored with the mark. The coach stays copy and paste.
 - Accounts, streaks, XP.
 - A second visual language. Playful shell stays; copy and grading change.
 - Notifications, unless a later pass adds them on purpose.
@@ -626,12 +755,13 @@ Each finding from the clarity / proficiency review is a rule in a phase above.
 | Warm-up completion marks “Introduce yourself” | R2 |
 | Meet and Spot count as success with no way to fail | R3 |
 | Mock mic types the answer | R3 |
-| Ink scribble counts as writing | R3 |
+| Ink scribble counts as writing | R3 stops the length check from counting. [Stroke order](#stroke-order) is the match: the learner sees the order, and a pass is that character |
 | Your Turn stores “work” on “today” | R3 |
 | Boss asks a different speech act; skip looks like the path moved on | R3 |
 | Placeholder and auto-success Build give the sentence away | R3 |
 | Script Spot prints the glyph; Hear speaks “a” | R3 |
 | Nothing brings the learner back, and a second open looks like day one | R2 |
-| Course cannot grow without a server | R5 |
+| Course cannot grow without a server | R5. The prompt is Mandarina’s, and the paste is the premade unit shape |
+| The language is chosen once, and another language is not its own journey | R7 |
 | No place to use known words | R6 |
 | A song is a wall of new words with no link to what they know | Lyrics |

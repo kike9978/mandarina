@@ -2,7 +2,7 @@ import type { ListeningMedium } from '../data/fixtures'
 import { isHttpsUrl } from './mediaUrl'
 import { formatTranscriptForBrief, parseTranscript } from './transcript'
 import type { TutorBriefInput } from './tutorPack'
-import { extractJsonValue } from './tutorPack'
+import { extractJsonValue, languageLockLine } from './tutorPack'
 
 export const MAX_POSTS_PER_STOP = 3
 
@@ -169,7 +169,9 @@ function snapshotLines(input: TutorBriefInput): string {
           .slice(0, 6)
           .map((w) => `- ${w.surface}`)
           .join('\n')
-  return `Learner
+  return `${languageLockLine(input.languageName)}
+
+Learner
 - Language: ${input.languageName} (${input.writingSystem})
 - Writing familiarity: ${input.scriptFamiliarity}
 - Goal: ${input.goalTitle}

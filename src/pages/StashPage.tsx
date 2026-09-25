@@ -3,6 +3,7 @@ import { searchDictionary } from '../learning/dictionary'
 import { readingSpans } from '../learning/readingAid'
 import { stashPracticeCap } from '../learning/templateBridge'
 import { useAppState, useGuideName } from '../state/AppState'
+import { JourneyCoach } from '../components/JourneyCoach'
 import { PackImport, StashSheet, TutorPackSheet } from '../components/StashTools'
 import { AidedText } from '../components/SessionBits'
 import { GuideBubble, PrimaryCta } from '../components/ui'
@@ -53,6 +54,7 @@ export function StashPage() {
         )}
 
         <TutorPackSheet onImport={importPhrases} />
+        <JourneyCoach />
         <PackImport onImport={importPhrases} />
 
         <section className="grid gap-2.5">

@@ -2,13 +2,18 @@ import {
   BookmarkPlus,
   Headphones,
   MessageCircle,
+  Music,
+  NotebookPen,
   Pencil,
   RotateCcw,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getPhraseUnit, hasPhraseUnit, HOME_SOFT, phrasePathOpen } from '../data/fixtures'
+import { writingSetsFor } from '../data/writingCharts'
+import { loadClearedSets, lockedWritingSets, nextWritingSet } from '../learning/writingProgress'
 import { languageById, orthographyLabel } from '../data/languages'
+import { loadJourney, lockedJourneyTitle, openJourneyUnit, toPhraseUnit } from '../learning/journeyPack'
 import { decideDailyPlan } from '../learning/orchestrator'
 import { useAppState, useGuideName } from '../state/AppState'
 import { GuideBubble, PrimaryCta } from '../components/ui'
@@ -33,10 +38,14 @@ export function HomePage() {
     startBossSession,
     bossReady,
     currentActivity,
+    refreshDue,
   } = useAppState()
   const guideName = useGuideName()
   const lang = languageById(profile.languageId)
-  const unit = getPhraseUnit(profile.languageId)
+  const seedUnit = getPhraseUnit(profile.languageId)
+  const [journeyUnit, setJourneyUnit] = useState<ReturnType<typeof getPhraseUnit>>(null)
+  const [journeyLocked, setJourneyLocked] = useState<string | null>(null)
+  const unit = journeyUnit ?? seedUnit
   const focusAbility = abilities.find((a) => a.id === 'talk-today')
   const scriptAbility = abilities.find((a) => a.id === 'script-basics')
   const isLatin = lang.orthographyMode === 'latin-sounds'
@@ -54,6 +63,46 @@ export function HomePage() {
   const listenWaiting = listeningSources.some(
     (s) => s.status === 'suggested' || s.status === 'listening',
   )
+  const [writingTitle, setWritingTitle] = useState<string | null>(null)
+  const [writingLocked, setWritingLocked] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    void loadJourney(profile.languageId).then((stored) => {
+      if (cancel) return
+      const open = stored ? openJourneyUnit(stored) : null
+      setJourneyUnit(open ? toPhraseUnit(open, profile.languageId) : null)
+      setJourneyLocked(stored ? lockedJourneyTitle(stored) : null)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [profile.languageId, lessonCleared])
+
+  useEffect(() => {
+    let cancel = false
+    void refreshDue()
+    void (async () => {
+      const rows = writingSetsFor(profile.languageId)
+      const cleared = await loadClearedSets(profile.languageId)
+      const next = nextWritingSet(rows, cleared, profile.scriptFamiliarity)
+      const locked = lockedWritingSets(rows, cleared, profile.scriptFamiliarity)
+      if (cancel) return
+      setWritingTitle(next?.set.title ?? null)
+      setWritingLocked(locked[0]?.title ?? null)
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [profile.languageId, profile.scriptFamiliarity, writingDueCount])
+
+  const writingLabel = writingDueCount > 0
+    ? 'A few marks are ready'
+    : writingTitle
+      ? writingTitle
+      : isLatin
+        ? HOME_SOFT.script
+        : HOME_SOFT.scriptNew
 
   const plan = useMemo(
     () =>
@@ -114,7 +163,27 @@ export function HomePage() {
           <p className="font-bold text-ink-soft">{lang.name}</p>
         </header>
 
-        {phraseReady && unit && plan.kind !== 'script' && (
+        {journeyUnit && (
+          <section className="animate-pop-in grid gap-3 rounded-[22px] border-[3px] border-ink bg-paper/95 px-4 py-[18px] shadow-chunky">
+            <p className="text-[0.78rem] font-extrabold tracking-wider uppercase opacity-75">
+              {journeyUnit.title}
+            </p>
+            <h1 className="text-[1.45rem] sm:text-[1.55rem]">{journeyUnit.targetSentence}</h1>
+            {journeyLocked && (
+              <p className="font-bold text-ink-soft">{journeyLocked} stays locked</p>
+            )}
+            <PrimaryCta
+              onClick={() => {
+                startSession()
+                navigate('/session')
+              }}
+            >
+              Start this unit
+            </PrimaryCta>
+          </section>
+        )}
+
+        {phraseReady && unit && plan.kind !== 'script' && !journeyUnit && (
           <section className="animate-pop-in grid gap-3 rounded-[22px] border-[3px] border-ink bg-paper/95 px-4 py-[18px] shadow-chunky">
             <p className="text-[0.78rem] font-extrabold tracking-wider uppercase opacity-75">
               Today
@@ -201,7 +270,9 @@ export function HomePage() {
               {isLatin ? 'Optional warm-up' : 'Start here'}
             </p>
             <h1 className="text-[1.45rem] sm:text-[1.55rem]">
-              {isLatin ? lang.scriptTrackTitle : 'Writing system warm-up'}
+              {writingDueCount > 0
+                ? 'A few marks are ready'
+                : writingTitle ?? (isLatin ? lang.scriptTrackTitle : 'Writing system warm-up')}
             </h1>
             <p className="leading-snug font-bold">
               {lang.scriptTrackTitle} — see, hear, spot, match, practice, use.
@@ -214,13 +285,13 @@ export function HomePage() {
                 ? `Same letters you know — we'll just lock in ${lang.name} sounds like ng / ny so phrases feel natural.`
                 : `We won't pretend you already know ${lang.writingSystem}. Let's make the marks feel friendly.`}
             </GuideBubble>
-            <PrimaryCta
-              onClick={() => {
-                startScriptSession()
-                navigate('/script')
-              }}
-            >
-              {isLatin ? 'Warm up sounds' : 'Practice the writing system'}
+            {writingLocked && writingDueCount === 0 && (
+              <p className="text-[0.92rem] font-bold text-ink-soft">
+                {writingLocked} stays locked
+              </p>
+            )}
+            <PrimaryCta onClick={() => navigate('/script-set')}>
+              {writingDueCount > 0 ? 'Review the marks' : `Start ${writingLabel}`}
             </PrimaryCta>
           </section>
         )}
@@ -230,15 +301,10 @@ export function HomePage() {
             <button
               type="button"
               className="flex w-full min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 text-left font-bold"
-              onClick={() => {
-                startScriptSession()
-                navigate('/script')
-              }}
+              onClick={() => navigate('/script-set')}
             >
               <Pencil size={18} strokeWidth={2.25} aria-hidden />
-              <span>
-                {isLatin ? HOME_SOFT.script : HOME_SOFT.scriptNew}
-              </span>
+              <span>{writingLabel}</span>
             </button>
           </li>
           {plan.softWriting && (
@@ -299,24 +365,31 @@ export function HomePage() {
               </span>
             </button>
           </li>
-          {listenWaiting && (
-            <li>
-              <Link
-                to="/journey#listen"
-                className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
-              >
-                <Headphones size={18} strokeWidth={2.25} aria-hidden />
-                <span>A listen is ready</span>
-              </Link>
-            </li>
-          )}
+          <li>
+            <Link
+              to="/journey#listen"
+              className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
+            >
+              <Headphones size={18} strokeWidth={2.25} aria-hidden />
+              <span>{listenWaiting ? 'A listen is ready' : 'Listen'}</span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/lyrics"
+              className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
+            >
+              <Music size={18} strokeWidth={2.25} aria-hidden />
+              <span>Lyrics</span>
+            </Link>
+          </li>
           <li>
             <Link
               to="/journal"
               className="flex min-h-11 items-center gap-2.5 rounded-2xl border-2 border-ink/35 bg-paper/75 px-3 py-2.5 font-bold no-underline"
             >
-              <Pencil size={18} strokeWidth={2.25} aria-hidden />
-              <span>Journal words</span>
+              <NotebookPen size={18} strokeWidth={2.25} aria-hidden />
+              <span>Journal</span>
             </Link>
           </li>
           <li>

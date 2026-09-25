@@ -104,15 +104,18 @@ export function ListeningPost() {
   }, [])
 
   return (
-    <div id="listening-post" className="mt-3 ml-1 grid scroll-mt-4 gap-2">
-      <div className="flex flex-wrap gap-2">
+    <div
+      id="listening-post"
+      className="mt-3 ml-1 grid min-w-0 max-w-[calc(100%-0.25rem)] grid-cols-1 scroll-mt-4 gap-2"
+    >
+      <div className="flex min-w-0 max-w-full flex-wrap gap-2">
         {posts.length === 0 && (
           <button
             type="button"
-            className={`${chipClass} ${markerClass('suggested')}`}
+            className={`${chipClass} max-w-full ${markerClass('suggested')}`}
             onClick={() => setOpen('find')}
           >
-            <Headphones strokeWidth={2.25} aria-hidden />
+            <Headphones className="shrink-0" strokeWidth={2.25} aria-hidden />
             Hear this in the wild
           </button>
         )}
@@ -120,12 +123,13 @@ export function ListeningPost() {
           <button
             type="button"
             key={post.id}
-            className={`${chipClass} max-w-full ${markerClass(post.status)}`}
+            className={`${chipClass} min-w-0 max-w-full overflow-hidden ${markerClass(post.status)}`}
             onClick={() => setOpen(post.id)}
             aria-pressed={open === post.id}
+            title={post.title}
           >
-            <Headphones strokeWidth={2.25} aria-hidden />
-            <span className="truncate">{post.title}</span>
+            <Headphones className="shrink-0" strokeWidth={2.25} aria-hidden />
+            <span className="min-w-0 truncate">{post.title}</span>
           </button>
         ))}
         {posts.length > 0 && slotsLeft > 0 && (

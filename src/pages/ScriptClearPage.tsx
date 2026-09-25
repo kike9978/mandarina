@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasPhraseUnit } from '../data/fixtures'
+import { writingSetsFor } from '../data/writingCharts'
 import { languageById, orthographyLabel } from '../data/languages'
+import { loadClearedSets, retrievedGlyphs } from '../learning/writingProgress'
 import { useAppState, useGuideName } from '../state/AppState'
 import { CheckpointBadge, GuideBubble, PrimaryCta } from '../components/ui'
 
@@ -12,6 +15,19 @@ export function ScriptClearPage() {
   const today = new Date().toLocaleDateString()
   const canPhrase = hasPhraseUnit(profile.languageId)
   const ortho = orthographyLabel(lang)
+  const [readable, setReadable] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancel = false
+    void (async () => {
+      const cleared = await loadClearedSets(profile.languageId)
+      const glyphs = [...retrievedGlyphs(writingSetsFor(profile.languageId), cleared)]
+      if (!cancel) setReadable(glyphs)
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [profile.languageId])
 
   return (
     <div className="atmosphere-mint flex min-h-full flex-1 flex-col">
@@ -24,9 +40,11 @@ export function ScriptClearPage() {
           {today} · Traveler: {profile.displayName}
         </p>
         <GuideBubble name={guideName}>
-          {lang.orthographyMode === 'latin-sounds'
-            ? `${lang.name} sounds locked in. Phrases are waiting.`
-            : 'Writing warm-up locked in. Phrases will feel less scary now.'}
+          {readable.length
+            ? `I can read ${readable.join(' ')}.`
+            : lang.orthographyMode === 'latin-sounds'
+              ? 'The sound warm-up is done. A retrieved spelling is what earns “I can read.”'
+              : 'The writing warm-up is done. A retrieved mark is what earns “I can read.”'}
         </GuideBubble>
         {canPhrase ? (
           <PrimaryCta

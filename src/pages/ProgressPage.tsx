@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PLAYABLE_ABILITY_IDS } from '../data/fixtures'
+import { loadSaidSentences } from '../learning/saidSentences'
 import { languageById } from '../data/languages'
 import { db } from '../db/mandarinaDb'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -34,6 +35,7 @@ export function ProgressPage() {
     stashCount: stash.length,
     written: 0,
   })
+  const [said, setSaid] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -50,6 +52,7 @@ export function ProgressPage() {
       const written = new Set(
         writingWins.map((a) => a.itemId).filter(Boolean),
       ).size
+      const lines = await loadSaidSentences(profile.languageId)
       if (!cancelled) {
         setStats({
           sessionsDone: done,
@@ -57,6 +60,7 @@ export function ProgressPage() {
           stashCount: stash.length,
           written,
         })
+        setSaid(lines)
       }
     })()
     return () => {
@@ -127,7 +131,19 @@ export function ProgressPage() {
             : 'Writing system'}
         </h2>
         <AbilityList abilities={scriptAbilities} />
-        <h2 className="text-lg">I can use the language</h2>
+        <h2 className="text-lg">Speaking</h2>
+        {said.length > 0 && (
+          <ul className="m-0 grid list-none gap-2 p-0">
+            {said.map((line) => (
+              <li
+                key={line}
+                className="rounded-2xl border-[2.5px] border-ink bg-paper/90 px-3.5 py-3 font-bold"
+              >
+                I can say {line}
+              </li>
+            ))}
+          </ul>
+        )}
         <AbilityList abilities={speakAbilities} heardIds={heardIds} />
       </div>
     </div>

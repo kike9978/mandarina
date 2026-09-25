@@ -1,4 +1,4 @@
-import type { LanguageId } from './languages'
+import { SCRIPT_GLYPHS, type LanguageId } from './languages'
 
 export interface ChartCell {
   glyph: string
@@ -371,6 +371,131 @@ export const ARABIC_LETTERS: ArabicLetter[] = [
   { name: 'wāw', sound: 'w', isolated: 'و', initial: 'و', medial: 'ـو', final: 'ـو' },
   { name: 'yāʼ', sound: 'y', isolated: 'ي', initial: 'يـ', medial: 'ـيـ', final: 'ـي' },
 ]
+
+export interface WritingMark {
+  glyph: string
+  reading: string
+  /** A word that contains this shape. The check asks which shape is in it. */
+  word?: string
+  /** Other shapes shown as lures, including the isolated letter. */
+  lures?: string[]
+}
+
+export interface WritingSet {
+  id: string
+  title: string
+  marks: WritingMark[]
+}
+
+function rowSet(id: string, title: string, row: (ChartCell | null)[]): WritingSet | null {
+  const marks = row.filter((cell): cell is ChartCell => Boolean(cell?.glyph && cell.reading))
+  if (!marks.length) return null
+  return { id, title, marks }
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const groups: T[][] = []
+  for (let i = 0; i < items.length; i += size) groups.push(items.slice(i, i + size))
+  return groups
+}
+
+function japaneseSets(): WritingSet[] {
+  const plain = gojuon('hira')
+    .map((row, index) => rowSet(`ja-hira-${index}`, `${row.find(Boolean)?.glyph ?? ''} row`, row))
+    .filter((set): set is WritingSet => Boolean(set))
+  const dakuten = voiced('hira')
+    .map((row, index) => rowSet(`ja-voice-${index}`, `${row[0]?.glyph ?? ''} row`, row))
+    .filter((set): set is WritingSet => Boolean(set))
+  const kata = gojuon('kata')
+    .map((row, index) => rowSet(`ja-kata-${index}`, `${row.find(Boolean)?.glyph ?? ''} row`, row))
+    .filter((set): set is WritingSet => Boolean(set))
+  return [...plain, ...dakuten, ...kata]
+}
+
+function pinyinSets(): WritingSet[] {
+  return PINYIN_ROWS.flatMap((row) => {
+    const marks = row.cells.filter((cell): cell is string => Boolean(cell)).map((reading) => ({
+      glyph: reading,
+      reading,
+    }))
+    const title = row.initial === '—' ? 'vowels' : `${row.initial} row`
+    return chunk(marks, 4).map((group, index) => ({
+      id: `zh-${row.initial}-${index}`,
+      title: index === 0 ? title : `${title} · ${index + 1}`,
+      marks: group,
+    }))
+  })
+}
+
+function koreanSets(): WritingSet[] {
+  const consonants = chunk(KO_CONSONANTS, 5).map((marks, index) => ({
+    id: `ko-consonant-${index}`,
+    title: index === 0 ? 'first consonants' : 'more consonants',
+    marks,
+  }))
+  const vowels = [{ id: 'ko-vowels', title: 'vowels', marks: KO_VOWELS }]
+  const blocks = KO_BLOCKS.slice(0, 2).map((row, index) => ({
+    id: `ko-block-${index}`,
+    title: index === 0 ? 'first syllable blocks' : 'more syllable blocks',
+    marks: row,
+  }))
+  return [...consonants, ...vowels, ...blocks]
+}
+
+function vocalized(body: string): string {
+  return [...body].map((char) => (ARABIC_LETTER.test(char) ? `${char}\u064E` : char)).join('')
+}
+
+const ARABIC_LETTER = /[\u0621-\u064A]/
+
+function arabicShapeSets(): WritingSet[] {
+  return ARABIC_LETTERS.map((letter, index) => {
+    const forms = [
+      { glyph: letter.initial, word: vocalized(`${letter.isolated}ا`), place: 'initial' },
+      { glyph: letter.medial, word: vocalized(`ك${letter.isolated}ا`), place: 'medial' },
+      { glyph: letter.final, word: vocalized(`ك${letter.isolated}`), place: 'final' },
+    ]
+    return {
+      id: `ar-shape-${index}`,
+      title: `${letter.name} shapes`,
+      marks: forms.map((form) => ({
+        glyph: form.glyph,
+        reading: letter.sound,
+        word: form.word,
+        lures: [letter.isolated, ...forms.map((item) => item.glyph)]
+          .filter((glyph) => glyph !== form.glyph)
+          .slice(0, 2),
+      })),
+    }
+  })
+}
+
+function arabicSets(): WritingSet[] {
+  const isolated = chunk(ARABIC_LETTERS, 4).map((group, index) => ({
+    id: `ar-${index}`,
+    title: `${group[0]?.name ?? 'letters'} group`,
+    marks: group.map((letter) => ({ glyph: letter.isolated, reading: letter.sound })),
+  }))
+  return [...isolated, ...arabicShapeSets()]
+}
+
+function soundSets(languageId: 'id' | 'es' | 'zh'): WritingSet[] {
+  const marks = SCRIPT_GLYPHS[languageId].map((glyph) => ({
+    glyph: glyph.glyph,
+    reading: glyph.reading,
+  }))
+  if (!marks.length) return []
+  const title = languageId === 'zh' ? 'first characters' : 'sounds'
+  return [{ id: `${languageId}-sounds`, title, marks }]
+}
+
+export function writingSetsFor(languageId: LanguageId): WritingSet[] {
+  if (languageId === 'ja') return japaneseSets()
+  if (languageId === 'zh') return [...pinyinSets(), ...soundSets('zh')]
+  if (languageId === 'ko') return koreanSets()
+  if (languageId === 'ar') return arabicSets()
+  return soundSets(languageId === 'es' ? 'es' : 'id')
+}
 
 export function hasWritingChart(languageId: LanguageId): boolean {
   return (

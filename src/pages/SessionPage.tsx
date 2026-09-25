@@ -2,6 +2,8 @@ import { Check, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type PhraseUnit } from '../data/fixtures'
+import { languageById } from '../data/languages'
+import { buildLineCheckBrief, missFacet, parseLineCheck } from '../learning/lineCheck'
 import { samePhrase, sentencePlaceholder } from '../learning/templateBridge'
 import { speakText, ttsLangFor } from '../learning/tts'
 import { useAppState, useGuideName } from '../state/AppState'
@@ -441,22 +443,7 @@ function SpotIt({ onNext }: { onNext: () => void }) {
           }}
         />
       )}
-      <PrimaryCta
-        disabled={!ready}
-        onClick={() => {
-          for (const chunk of targets) {
-            const key = itemKey(chunk.itemId)
-            if (!key) continue
-            logAttempt({
-              activityType: 'spot',
-              itemKey: key,
-              facet: 'recognition',
-              outcome: 'success',
-            })
-          }
-          onNext()
-        }}
-      >
+      <PrimaryCta disabled={!ready} onClick={onNext}>
         Your Turn
       </PrimaryCta>
     </ActivityShell>
@@ -745,7 +732,16 @@ function SayIt({ onNext }: { onNext: () => void }) {
   const [value, setValue] = useState('')
   const [failed, setFailed] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [checkPaste, setCheckPaste] = useState('')
+  const [checkHint, setCheckHint] = useState<string | null>(null)
+  const [checkError, setCheckError] = useState<string | null>(null)
   const ok = samePhrase(value, unit.targetSentence)
+  const lineBrief = buildLineCheckBrief({
+    languageName: languageById(profile.languageId).name,
+    typed: value,
+    target: unit.targetSentence,
+    facet: missFacet(value, unit.targetSentence),
+  })
 
   const log = (outcome: 'success' | 'fail' | 'hint' | 'reveal') => {
     const key = itemKey(focusId)
@@ -786,6 +782,38 @@ function SayIt({ onNext }: { onNext: () => void }) {
         }}
       />
       {failed && !ok && (
+        <div className="grid gap-2">
+          <p className="font-bold">Check this line in your chat. The hint will not pass this step.</p>
+          <textarea className="min-h-20 rounded-xl border-[2.5px] border-ink bg-paper p-3 text-sm font-bold" readOnly value={lineBrief} />
+          <button
+            type="button"
+            className="min-h-11 font-extrabold"
+            onClick={() => void navigator.clipboard.writeText(lineBrief)}
+          >
+            Copy the line brief
+          </button>
+          <textarea
+            className="min-h-16 rounded-xl border-[2.5px] border-ink bg-paper p-3 font-bold"
+            value={checkPaste}
+            onChange={(event) => setCheckPaste(event.target.value)}
+            placeholder="Paste the hint JSON"
+          />
+          <button
+            type="button"
+            className="min-h-11 font-extrabold"
+            onClick={() => {
+              const parsed = parseLineCheck(checkPaste, unit.targetSentence)
+              setCheckHint(parsed.hint ?? null)
+              setCheckError(parsed.error ?? null)
+            }}
+          >
+            Show the hint
+          </button>
+          {checkHint && <p className="font-bold">{checkHint}</p>}
+          {checkError && <p className="font-bold">{checkError}</p>}
+        </div>
+      )}
+      {failed && !ok && (
         <SoftFeedback
           hint="Rebuild from the chunks you just practiced."
           answer={unit.targetSentence}
@@ -803,6 +831,7 @@ function SayIt({ onNext }: { onNext: () => void }) {
         onClick={() => {
           if (ok) {
             log('success')
+            sessionStorage.setItem('mandarina-said-sentence', unit.targetSentence)
             onNext()
           } else {
             setFailed(true)

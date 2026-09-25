@@ -30,6 +30,8 @@ import type {
 import { languageById } from '../data/languages'
 import { db } from '../db/mandarinaDb'
 import { ensureSeeded, loadAbilitiesForProfile, setAbilityStatus, syncAbilitiesForProfile } from '../db/seed'
+import { loadJourney, openJourneyUnit, toPhraseUnit } from '../learning/journeyPack'
+import { loadRetryTasks, retryToComebacks } from '../learning/retryTasks'
 import type { AttemptOutcome, Facet } from '../db/types'
 import {
   endDbSession,
@@ -194,7 +196,8 @@ interface AppStateValue {
   advanceScriptFrom: (id: ScriptActivityId) => void
   resetSession: () => void
   resetScriptSession: () => void
-  addStash: (phrase: Omit<StashedPhrase, 'id'>) => void
+  rewindScriptToSee: () => void
+  addStash: (phrase: Omit<StashedPhrase, 'id'>) => Promise<void>
   importPhrases: (
     phrases: Omit<StashedPhrase, 'id'>[],
     meta?: { format?: 'json' | 'tsv' | 'paste'; name?: string },
@@ -212,6 +215,7 @@ interface AppStateValue {
     outcome: AttemptOutcome
     hintsUsed?: number
   }) => void
+  refreshDue: () => Promise<void>
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null)
@@ -429,7 +433,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   )
 
   const startSession = useCallback(async () => {
-    const seed = getPhraseUnit(profile.languageId)
+    const journey = await loadJourney(profile.languageId)
+    const open = journey ? openJourneyUnit(journey) : null
+    const seed = open
+      ? toPhraseUnit(open, profile.languageId)
+      : getPhraseUnit(profile.languageId)
     if (!seed) return
 
     setSessionStarted(true)
@@ -443,6 +451,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       lastActiveAt,
     })
     const unit = attachComebacks(seed, dueRows)
+    const retries = retryToComebacks(await loadRetryTasks(profile.languageId))
+    if (retries.length) {
+      const rest = (unit.comebackItems ?? []).filter(
+        (item) => !retries.some((retry) => retry.surface === item.surface),
+      )
+      unit.comebackItems = [...retries, ...rest].slice(0, COMEBACK_CAP)
+    }
     const hasComebacks = (unit.comebackItems?.length ?? 0) > 0
     const order = composeJourneyOrder(
       hasComebacks ? plan.kind : 'journey',
@@ -753,6 +768,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setActiveSessionId(null)
   }, [])
 
+  const rewindScriptToSee = useCallback(() => {
+    setCurrentScriptActivity('see')
+    setScriptSteps(withProgress(SCRIPT_SESSION_STEPS, 'see'))
+  }, [])
+
   const addStash = useCallback(
     async (phrase: Omit<StashedPhrase, 'id'>) => {
       const id = `stash-${Date.now()}`
@@ -931,6 +951,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       advanceScriptFrom,
       resetSession,
       resetScriptSession,
+      rewindScriptToSee,
       addStash,
       importPhrases,
       addListeningSources,
@@ -938,6 +959,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       markListened,
       markListeningPracticed,
       logAttempt,
+      refreshDue: () => refreshDueCounts(profile.languageId),
     }),
     [
       ready,
@@ -973,6 +995,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       advanceScriptFrom,
       resetSession,
       resetScriptSession,
+      rewindScriptToSee,
       addStash,
       importPhrases,
       addListeningSources,
@@ -980,6 +1003,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       markListened,
       markListeningPracticed,
       logAttempt,
+      refreshDueCounts,
     ],
   )
 
