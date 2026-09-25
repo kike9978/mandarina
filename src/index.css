@@ -106,7 +106,7 @@
 /* Page gutters: tighter on phones, roomier inside the desktop stage */
 @layer components {
   .page-pad {
-    @apply grid gap-4 px-4 py-5 pb-7 sm:gap-5 sm:px-5 sm:py-6 md:px-5;
+    @apply grid w-full min-w-0 max-w-full gap-4 px-4 py-5 pb-7 sm:gap-5 sm:px-5 sm:py-6 md:px-5;
   }
 }
 
